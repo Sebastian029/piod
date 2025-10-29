@@ -29,6 +29,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
+      - .:/app  # <-- DODAJ TO! Mapuje cały projekt do /app w kontenerze
       - static-data:/app/DjangoProject/staticfiles
 
 volumes:

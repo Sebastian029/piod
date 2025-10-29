@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
+from .models import Recipe
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -16,3 +17,11 @@ class RegisterSerializer(serializers.ModelSerializer):
             password=validated_data["password"],
         )
         return user
+
+class RecipeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Recipe
+        fields = ['id', 'name', 'description', 'meal_type',
+                  'protein', 'carbs', 'fat', 'calories',
+                  'tags', "steps",
+                  'n_steps', 'n_ingredients', 'ingredients']
