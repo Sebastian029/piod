@@ -21,7 +21,5 @@ class RegisterSerializer(serializers.ModelSerializer):
 class RecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
-        fields = ['id', 'name', 'description', 'meal_type',
-                  'protein', 'carbs', 'fat', 'calories',
-                  'tags', "steps",
-                  'n_steps', 'n_ingredients', 'ingredients']
+        fields = ['id', 'name', 'description', 'meal_type', 'protein', 'carbs', 'fat', 'calories',
+                  'tags', "steps", 'n_steps', 'n_ingredients', 'ingredients']

@@ -18,7 +18,6 @@ def load_data(max_recipes: int = 10000) -> pd.DataFrame:
     if max_recipes is not None:
         df = df.head(max_recipes)
 
-    # Parse ingredients
     ingredients_parsed = []
     for ing_str in df['ingredients']:
         try:
@@ -28,7 +27,6 @@ def load_data(max_recipes: int = 10000) -> pd.DataFrame:
             ingredients_parsed.append([])
     df['ingredients_list'] = ingredients_parsed
 
-    # Parse steps
     steps_parsed = []
     for step_str in df.get('steps', []):
         try:
@@ -38,7 +36,6 @@ def load_data(max_recipes: int = 10000) -> pd.DataFrame:
             steps_parsed.append([])
     df['steps_list'] = steps_parsed
 
-    # Parse nutrition
     nutrition_parsed = []
     for nutr_str in df['nutrition']:
         try:
@@ -49,20 +46,13 @@ def load_data(max_recipes: int = 10000) -> pd.DataFrame:
             nutrition_parsed.append([0, 0, 0, 0, 0, 0, 0])
     df['nutrition_list'] = nutrition_parsed
 
-    # Extract nutrition values
     df['calories'] = df['nutrition_list'].apply(lambda x: float(x[0]) if len(x) > 0 else 0)
     df['fat'] = df['nutrition_list'].apply(lambda x: float(x[1]) if len(x) > 1 else 0)
     df['protein'] = df['nutrition_list'].apply(lambda x: float(x[4]) if len(x) > 4 else 0)
     df['carbs'] = df['nutrition_list'].apply(lambda x: float(x[6]) if len(x) > 6 else 0)
-
-    # Convert n_steps and n_ingredients to int
     df['n_steps'] = pd.to_numeric(df.get('n_steps', 0), errors='coerce').fillna(0).astype(int)
     df['n_ingredients'] = pd.to_numeric(df.get('n_ingredients', 0), errors='coerce').fillna(0).astype(int)
-
-    # Convert preparation time if exists
     df['minutes'] = pd.to_numeric(df.get('minutes', 0), errors='coerce').fillna(0).astype(int)
-
-    # Filter valid recipes
     df = df[(df['calories'] > 0) & (df['protein'] >= 0) & (df['carbs'] >= 0)]
 
     return df

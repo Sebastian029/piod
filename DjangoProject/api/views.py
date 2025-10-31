@@ -102,7 +102,7 @@ class RecipeDetailView(generics.RetrieveAPIView):
 
 
 class DeleteAllRecipesView(APIView):
-    permission_classes = [AllowAny]  # Zmień na IsAuthenticated w produkcji!
+    permission_classes = [AllowAny]
 
     def delete(self, request):
         try:
