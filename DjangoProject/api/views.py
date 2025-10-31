@@ -89,16 +89,22 @@ class UploadRecipesView(APIView):
         return created_count
 
 
-class RecipeListView(generics.ListAPIView):
-    queryset = Recipe.objects.all()
-    serializer_class = RecipeSerializer
+
+class RecipeDetailView(APIView):
     permission_classes = [AllowAny]
 
-
-class RecipeDetailView(generics.RetrieveAPIView):
-    queryset = Recipe.objects.all()
-    serializer_class = RecipeSerializer
-    permission_classes = [AllowAny]
+    def get(self, request, pk=None):
+        if pk:
+            try:
+                recipe = Recipe.objects.get(pk=pk)
+                serializer = RecipeSerializer(recipe)
+                return Response(serializer.data)
+            except Recipe.DoesNotExist:
+                return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            recipes = Recipe.objects.all()
+            serializer = RecipeSerializer(recipes, many=True)
+            return Response(serializer.data)
 
 
 class DeleteAllRecipesView(APIView):
