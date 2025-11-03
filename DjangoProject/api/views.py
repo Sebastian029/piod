@@ -1,12 +1,12 @@
-from rest_framework import status, generics
+from rest_framework import status, generics, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from django.db import transaction
 
-from .serializers import RegisterSerializer, RecipeSerializer
-from .models import Recipe
+from .serializers import RegisterSerializer, RecipeSerializer, UserDietPreferencesSerializer
+from .models import Recipe, UserDietPreferences
 from core.get_data import load_data, prepare_recipes
 
 
@@ -127,3 +127,81 @@ class DeleteAllRecipesView(APIView):
                 'success': False,
                 'message': f'Error: {str(e)}'
             }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserDietPreferencesViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserDietPreferencesSerializer
+
+    def list(self, request):
+        preferences, created = UserDietPreferences.objects.get_or_create(
+            user=request.user
+        )
+
+        serializer = UserDietPreferencesSerializer(preferences)
+        return Response(serializer.data)
+
+    def create(self, request):
+        if UserDietPreferences.objects.filter(user=request.user).exists():
+            return Response(
+                {'detail': 'Preferences already exist. Use PUT or PATCH to update.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = UserDietPreferencesSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request):
+        try:
+            preferences = UserDietPreferences.objects.get(user=request.user)
+        except UserDietPreferences.DoesNotExist:
+            return Response(
+                {'detail': 'Preferences not found. Create them first.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = UserDietPreferencesSerializer(
+            preferences,
+            data=request.data,
+            partial=False
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def partial_update(self, request):
+        try:
+            preferences = UserDietPreferences.objects.get(user=request.user)
+        except UserDietPreferences.DoesNotExist:
+            return Response(
+                {'detail': 'Preferences not found. Create them first.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = UserDietPreferencesSerializer(
+            preferences,
+            data=request.data,
+            partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request):
+        try:
+            preferences = UserDietPreferences.objects.get(user=request.user)
+            preferences.delete()
+            return Response(
+                {'detail': 'Preferences deleted'},
+                status=status.HTTP_204_NO_CONTENT
+            )
+        except UserDietPreferences.DoesNotExist:
+            return Response(
+                {'detail': 'Preferences not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )

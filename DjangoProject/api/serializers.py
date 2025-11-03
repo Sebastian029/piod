@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Recipe
+from .models import Recipe, UserDietPreferences
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -23,3 +23,78 @@ class RecipeSerializer(serializers.ModelSerializer):
         model = Recipe
         fields = ['id', 'name', 'description', 'meal_type', 'protein', 'carbs', 'fat', 'calories',
                   'tags', "steps", 'n_steps', 'n_ingredients', 'ingredients']
+
+
+
+
+class UserDietPreferencesSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = UserDietPreferences
+        fields = [
+            'user',
+            'username',
+            'min_calories_per_day',
+            'max_calories_per_day',
+            'meals_per_day',
+            'min_protein_per_day',
+            'max_protein_per_day',
+            'min_carbs_per_day',
+            'max_carbs_per_day',
+            'min_fat_per_day',
+            'max_fat_per_day',
+            'allergens',
+            'excluded_ingredients',
+            'diet_type',
+        ]
+        read_only_fields = ['user']
+
+    def validate(self, data):
+        instance = getattr(self, 'instance', None)
+
+        # Kalorie
+        min_cal = data.get('min_calories_per_day',
+                           getattr(instance, 'min_calories_per_day', None) if instance else None)
+        max_cal = data.get('max_calories_per_day',
+                           getattr(instance, 'max_calories_per_day', None) if instance else None)
+
+        if min_cal is not None and max_cal is not None and min_cal > max_cal:
+            raise serializers.ValidationError({
+                'min_calories_per_day': 'Minimum calories cannot be greater than maximum calories'
+            })
+
+        # Białko
+        min_protein = data.get('min_protein_per_day',
+                               getattr(instance, 'min_protein_per_day', None) if instance else None)
+        max_protein = data.get('max_protein_per_day',
+                               getattr(instance, 'max_protein_per_day', None) if instance else None)
+
+        if min_protein is not None and max_protein is not None and min_protein > max_protein:
+            raise serializers.ValidationError({
+                'min_protein_per_day': 'Minimum protein cannot be greater than maximum protein'
+            })
+
+        # Węglowodany
+        min_carbs = data.get('min_carbs_per_day',
+                             getattr(instance, 'min_carbs_per_day', None) if instance else None)
+        max_carbs = data.get('max_carbs_per_day',
+                             getattr(instance, 'max_carbs_per_day', None) if instance else None)
+
+        if min_carbs is not None and max_carbs is not None and min_carbs > max_carbs:
+            raise serializers.ValidationError({
+                'min_carbs_per_day': 'Minimum carbs cannot be greater than maximum carbs'
+            })
+
+        # Tłuszcze
+        min_fat = data.get('min_fat_per_day',
+                           getattr(instance, 'min_fat_per_day', None) if instance else None)
+        max_fat = data.get('max_fat_per_day',
+                           getattr(instance, 'max_fat_per_day', None) if instance else None)
+
+        if min_fat is not None and max_fat is not None and min_fat > max_fat:
+            raise serializers.ValidationError({
+                'min_fat_per_day': 'Minimum fat cannot be greater than maximum fat'
+            })
+
+        return data
