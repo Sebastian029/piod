@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterView, ProtectedView, UserDietPreferencesViewSet
+from .views import RegisterView, ProtectedView, UserDietPreferencesViewSet, GenerateWeeklyPlanView
 from . import views
 
 preferences_list = UserDietPreferencesViewSet.as_view({
@@ -19,5 +19,6 @@ urlpatterns = [
     path('recipes/load/', views.UploadRecipesView.as_view(), name='upload-recipes'),
     path('recipes/delete-all/', views.DeleteAllRecipesView.as_view(), name='delete-all-recipes'),
     path('preferences/', preferences_list, name='user-preferences'),
+    path('plans/weekly/', GenerateWeeklyPlanView.as_view(), name='generate-weekly-plan'),
 
 ]

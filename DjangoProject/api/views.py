@@ -8,6 +8,8 @@ from django.db import transaction
 from .serializers import RegisterSerializer, RecipeSerializer, UserDietPreferencesSerializer
 from .models import Recipe, UserDietPreferences
 from core.get_data import load_data, prepare_recipes
+from core.ga_types import GAConfig, MacroRange, MealPlanConstraints
+from core.ga_engine import evolve
 
 
 class RegisterView(APIView):
@@ -206,3 +208,89 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
                 {'detail': 'Preferences not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+class GenerateWeeklyPlanView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            preferences, _ = UserDietPreferences.objects.get_or_create(user=request.user)
+        except Exception as e:
+            return Response({'detail': f'Preferences error: {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if preferences.meals_per_day <= 1:
+            required_types = ['lunch']
+        elif preferences.meals_per_day == 2:
+            required_types = ['breakfast', 'dinner']
+        else:
+            required_types = ['breakfast', 'lunch', 'dinner']
+
+        constraints = MealPlanConstraints(
+            days=7,
+            meals_per_day=preferences.meals_per_day,
+            required_meal_types=required_types,
+            calories_target_per_day=preferences.get_target_calories(),
+            macros_per_day=MacroRange(
+                protein_g=(preferences.min_protein_per_day, preferences.max_protein_per_day),
+                carbs_g=(preferences.min_carbs_per_day, preferences.max_carbs_per_day),
+                fat_g=(preferences.min_fat_per_day, preferences.max_fat_per_day),
+            ),
+            excluded_ingredients=list(preferences.excluded_ingredients or []),
+            allergens=list(preferences.allergens or []),
+            diet_type=preferences.diet_type,
+            diversity_window_days=3,
+        )
+
+        qs = Recipe.objects.all()
+        recipes = []
+        for r in qs:
+            recipe_dict = {
+                'id': r.id,
+                'name': r.name,
+                'description': r.description,
+                'meal_type': r.meal_type,
+                'protein': float(r.protein),
+                'carbs': float(r.carbs),
+                'fat': float(r.fat),
+                'calories': float(r.calories),
+                'ingredients': list(r.ingredients or []),
+                'steps': list(r.steps or []),
+                'tags': r.tags,
+                'n_steps': int(r.n_steps),
+                'n_ingredients': int(r.n_ingredients),
+                'is_vegetarian': bool(r.is_vegetarian),
+                'is_vegan': bool(r.is_vegan),
+            }
+            recipes.append(recipe_dict)
+
+        if not recipes:
+            return Response({'detail': 'No recipes available. Load recipes first.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        ga = GAConfig()
+        best_plan, best_score, result = evolve(recipes, constraints, ga, rng_seed=1)
+
+        result_days = []
+        for d in range(constraints.days):
+            day_items = []
+            for idx in best_plan.plan[d]:
+                r = recipes[idx]
+                day_items.append({
+                    'id': r['id'],
+                    'name': r['name'],
+                    'meal_type': r['meal_type'],
+                    'calories': r['calories'],
+                    'protein': r['protein'],
+                    'carbs': r['carbs'],
+                    'fat': r['fat'],
+                })
+            result_days.append(day_items)
+
+        return Response({
+            'score': best_score,
+            'result': result,
+            'days': result_days,
+            'meals_per_day': constraints.meals_per_day,
+            'diet_type': constraints.diet_type,
+            'calories_target_per_day': constraints.calories_target_per_day,
+        }, status=status.HTTP_200_OK)

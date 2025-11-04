@@ -33,6 +33,8 @@ class UserDietPreferencesSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserDietPreferences
         fields = [
+            'user',
+            'username',
             'min_calories_per_day',
             'max_calories_per_day',
             'meals_per_day',
