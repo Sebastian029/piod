@@ -76,8 +76,9 @@ class UploadRecipesView(APIView):
                         n_steps=int(recipe_data.get('n_steps', 0)),
                         n_ingredients=int(recipe_data.get('n_ingredients', 0)),
                         ingredients=recipe_data['ingredients'],
-                        steps=recipe_data.get('steps', [])
-
+                        steps=recipe_data.get('steps', []),
+                        is_vegetarian=recipe_data['is_vegetarian'],
+                        is_vegan=recipe_data['is_vegan']
                     )
 
                     created_count += 1

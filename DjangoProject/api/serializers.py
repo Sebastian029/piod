@@ -22,7 +22,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
         fields = ['id', 'name', 'description', 'meal_type', 'protein', 'carbs', 'fat', 'calories',
-                  'tags', "steps", 'n_steps', 'n_ingredients', 'ingredients']
+                  'tags', "steps", 'n_steps', 'n_ingredients', 'ingredients', 'is_vegetarian', 'is_vegan']
 
 
 
@@ -33,8 +33,6 @@ class UserDietPreferencesSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserDietPreferences
         fields = [
-            'user',
-            'username',
             'min_calories_per_day',
             'max_calories_per_day',
             'meals_per_day',

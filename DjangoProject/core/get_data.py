@@ -58,6 +58,73 @@ def load_data(max_recipes: int = 10000) -> pd.DataFrame:
     return df
 
 
+def is_vegan_recipe(row) -> bool:
+    """Check if recipe is vegan based on ingredients and tags."""
+    non_vegan_keywords = [
+        # Meat and poultry
+        'chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'meat', 'bacon',
+        'ham', 'sausage', 'steak', 'veal', 'venison', 'bison',
+        # Seafood
+        'fish', 'salmon', 'tuna', 'shrimp', 'prawn', 'crab', 'lobster',
+        'seafood', 'anchovy', 'sardine', 'shellfish', 'oyster', 'mussel',
+        # Dairy
+        'milk', 'cheese', 'butter', 'cream', 'yogurt', 'yoghurt', 'whey',
+        'casein', 'lactose', 'ghee', 'buttermilk', 'sour cream',
+        # Eggs
+        'egg', 'eggs', 'mayo', 'mayonnaise',
+        # Other animal products
+        'honey', 'gelatin', 'gelatine'
+    ]
+
+    ingredients_str = ' '.join(row['ingredients_list']).lower()
+    tags_str = str(row['tags']).lower()
+    name_str = str(row['name']).lower()
+
+    # Check for explicit vegan tag
+    if 'vegan' in tags_str:
+        return True
+
+    # Check for non-vegan ingredients
+    combined_text = f"{ingredients_str} {tags_str} {name_str}"
+    for keyword in non_vegan_keywords:
+        if keyword in combined_text:
+            return False
+
+    return False  # Default to False unless explicitly vegan
+
+
+def is_vegetarian_recipe(row) -> bool:
+    """Check if recipe is vegetarian based on ingredients and tags."""
+    non_vegetarian_keywords = [
+        # Meat and poultry
+        'chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'meat', 'bacon',
+        'ham', 'sausage', 'steak', 'veal', 'venison', 'bison', 'pepperoni',
+        'salami', 'prosciutto',
+        # Seafood
+        'fish', 'salmon', 'tuna', 'shrimp', 'prawn', 'crab', 'lobster',
+        'seafood', 'anchovy', 'sardine', 'shellfish', 'oyster', 'mussel',
+        'cod', 'haddock', 'tilapia', 'trout',
+        # Animal-based additives
+        'gelatin', 'gelatine', 'rennet'
+    ]
+
+    ingredients_str = ' '.join(row['ingredients_list']).lower()
+    tags_str = str(row['tags']).lower()
+    name_str = str(row['name']).lower()
+
+    # Check for explicit vegetarian or vegan tag
+    if 'vegetarian' in tags_str or 'vegan' in tags_str:
+        return True
+
+    # Check for non-vegetarian ingredients
+    combined_text = f"{ingredients_str} {tags_str} {name_str}"
+    for keyword in non_vegetarian_keywords:
+        if keyword in combined_text:
+            return False
+
+    return False  # Default to False unless explicitly vegetarian
+
+
 def classify_meal_type(row) -> str:
     tags_str = str(row['tags']).lower()
     name_str = str(row['name']).lower()
@@ -104,6 +171,8 @@ def classify_meal_type(row) -> str:
 
 def prepare_recipes(df: pd.DataFrame) -> List[Dict]:
     df['meal_type'] = df.apply(classify_meal_type, axis=1)
+    df['is_vegetarian'] = df.apply(is_vegetarian_recipe, axis=1)
+    df['is_vegan'] = df.apply(is_vegan_recipe, axis=1)
 
     recipes = []
     for _, row in df.iterrows():
@@ -122,9 +191,10 @@ def prepare_recipes(df: pd.DataFrame) -> List[Dict]:
             'preparation_time': int(row.get('minutes', 0)),
             'preparation_guide': '\n'.join(row.get('steps_list', [])),
             'n_steps': int(row.get('n_steps', 0)),
-            'n_ingredients': int(row.get('n_ingredients', 0))
+            'n_ingredients': int(row.get('n_ingredients', 0)),
+            'is_vegetarian': row['is_vegetarian'],
+            'is_vegan': row['is_vegan']
         }
         recipes.append(recipe)
 
     return recipes
-
