@@ -1,7 +1,5 @@
 from __future__ import annotations
-
 from typing import Dict, List, Tuple
-
 from .ga_types import MealPlan, MealPlanConstraints, Recipe
 
 
@@ -27,11 +25,9 @@ def compute_fitness(
     recipes: List[Recipe],
     constraints: MealPlanConstraints,
 ) -> Tuple[float, Dict[str, float]]:
-    # Higher is better
     score = 1000.0
     breakdown: Dict[str, float] = {}
 
-    # 1) Daily calories deviation (quadratic penalty)
     kcal_penalty = 0.0
     for d in range(constraints.days):
         day_rcps = [recipes[idx] for idx in plan.plan[d]]
@@ -41,7 +37,6 @@ def compute_fitness(
     score -= kcal_penalty
     breakdown['calories'] = -kcal_penalty
 
-    # 2) Meals per day hard constraint (should match)
     meals_penalty = 0.0
     for d in range(constraints.days):
         if len(plan.plan[d]) != constraints.meals_per_day:
@@ -49,7 +44,6 @@ def compute_fitness(
     score -= meals_penalty
     breakdown['meals_count'] = -meals_penalty
 
-    # 3) Required meal types presence per day
     type_penalty = 0.0
     for d in range(constraints.days):
         day_types = [_meal_type_for(recipes[idx]) for idx in plan.plan[d]]
@@ -59,7 +53,6 @@ def compute_fitness(
     score -= type_penalty
     breakdown['required_types'] = -type_penalty
 
-    # 4) Macro ranges per day (linear penalty outside range)
     macros_penalty = 0.0
     for d in range(constraints.days):
         totals = _day_totals([recipes[idx] for idx in plan.plan[d]])
@@ -75,19 +68,15 @@ def compute_fitness(
     score -= macros_penalty
     breakdown['macros'] = -macros_penalty
 
-    # 5) Allergens/Exclusions should be impossible if filtered, but add safety penalty
     allergy_penalty = 0.0
     for d in range(constraints.days):
         for idx in plan.plan[d]:
             r = recipes[idx]
-            # strong penalty for any violation
-            # flags would be prefiltered earlier; here we check a marker
             if r.get('__banned__'):
                 allergy_penalty += 500.0
     score -= allergy_penalty
     breakdown['allergens'] = -allergy_penalty
 
-    # 6) Diversity: penalize repeats within the sliding window
     div_penalty = 0.0
     seen_window: List[int] = []
     window = max(1, constraints.diversity_window_days) * constraints.meals_per_day
@@ -101,7 +90,6 @@ def compute_fitness(
     score -= div_penalty
     breakdown['diversity'] = -div_penalty
 
-    # 7) Diet adherence: reward when all items match diet markers
     diet_bonus = 0.0
     for d in range(constraints.days):
         for idx in plan.plan[d]:

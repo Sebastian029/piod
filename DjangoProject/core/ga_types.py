@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Dict, List, Literal, Optional, Tuple
 
@@ -42,8 +41,7 @@ Recipe = Dict[str, object]
 
 @dataclass
 class MealPlan:
-    # plan[day_index] = list of recipes length == meals_per_day
-    plan: List[List[int]]  # store recipe indices referencing the recipe pool
+    plan: List[List[int]]
     meals_per_day: int
     days: int
 

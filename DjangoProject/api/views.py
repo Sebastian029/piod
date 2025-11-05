@@ -2,9 +2,7 @@ from rest_framework import status, generics, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
 from django.db import transaction
-
 from .serializers import RegisterSerializer, RecipeSerializer, UserDietPreferencesSerializer
 from .models import Recipe, UserDietPreferences
 from core.get_data import load_data, prepare_recipes
@@ -239,7 +237,7 @@ class GenerateWeeklyPlanView(APIView):
             excluded_ingredients=list(preferences.excluded_ingredients or []),
             allergens=list(preferences.allergens or []),
             diet_type=preferences.diet_type,
-            diversity_window_days=3,
+            diversity_window_days=7 ,
         )
 
         qs = Recipe.objects.all()
