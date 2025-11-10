@@ -207,7 +207,6 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-
 class GenerateWeeklyPlanView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -237,7 +236,7 @@ class GenerateWeeklyPlanView(APIView):
             excluded_ingredients=list(preferences.excluded_ingredients or []),
             allergens=list(preferences.allergens or []),
             diet_type=preferences.diet_type,
-            diversity_window_days=7 ,
+            diversity_window_days=7,
         )
 
         qs = Recipe.objects.all()
@@ -268,12 +267,27 @@ class GenerateWeeklyPlanView(APIView):
         ga = GAConfig()
         best_plan, best_score, result = evolve(recipes, constraints, ga, rng_seed=1)
 
+        # Calculate weekly totals
         result_days = []
+        weekly_totals = {
+            'calories': 0.0,
+            'protein': 0.0,
+            'carbs': 0.0,
+            'fat': 0.0,
+        }
+
         for d in range(constraints.days):
             day_items = []
+            day_totals = {
+                'calories': 0.0,
+                'protein': 0.0,
+                'carbs': 0.0,
+                'fat': 0.0,
+            }
+
             for idx in best_plan.plan[d]:
                 r = recipes[idx]
-                day_items.append({
+                meal_data = {
                     'id': r['id'],
                     'name': r['name'],
                     'meal_type': r['meal_type'],
@@ -281,14 +295,87 @@ class GenerateWeeklyPlanView(APIView):
                     'protein': r['protein'],
                     'carbs': r['carbs'],
                     'fat': r['fat'],
-                })
-            result_days.append(day_items)
+                }
+                day_items.append(meal_data)
+
+                # Sum for the day
+                day_totals['calories'] += r['calories']
+                day_totals['protein'] += r['protein']
+                day_totals['carbs'] += r['carbs']
+                day_totals['fat'] += r['fat']
+
+            # Sum for the week
+            weekly_totals['calories'] += day_totals['calories']
+            weekly_totals['protein'] += day_totals['protein']
+            weekly_totals['carbs'] += day_totals['carbs']
+            weekly_totals['fat'] += day_totals['fat']
+
+            result_days.append({
+                'day': d + 1,
+                'meals': day_items,
+                'daily_totals': {
+                    'calories': round(day_totals['calories'], 2),
+                    'protein': round(day_totals['protein'], 2),
+                    'carbs': round(day_totals['carbs'], 2),
+                    'fat': round(day_totals['fat'], 2),
+                }
+            })
+
+        # User preferences (targets)
+        user_preferences = {
+            'meals_per_day': preferences.meals_per_day,
+            'diet_type': preferences.diet_type,
+            'daily_targets': {
+                'calories': preferences.get_target_calories(),
+                'protein': {
+                    'min': preferences.min_protein_per_day,
+                    'max': preferences.max_protein_per_day,
+                },
+                'carbs': {
+                    'min': preferences.min_carbs_per_day,
+                    'max': preferences.max_carbs_per_day,
+                },
+                'fat': {
+                    'min': preferences.min_fat_per_day,
+                    'max': preferences.max_fat_per_day,
+                },
+            },
+            'weekly_targets': {
+                'calories': preferences.get_target_calories() * 7,
+                'protein': {
+                    'min': preferences.min_protein_per_day * 7,
+                    'max': preferences.max_protein_per_day * 7,
+                },
+                'carbs': {
+                    'min': preferences.min_carbs_per_day * 7,
+                    'max': preferences.max_carbs_per_day * 7,
+                },
+                'fat': {
+                    'min': preferences.min_fat_per_day * 7,
+                    'max': preferences.max_fat_per_day * 7,
+                },
+            },
+            'excluded_ingredients': list(preferences.excluded_ingredients or []),
+            'allergens': list(preferences.allergens or []),
+        }
 
         return Response({
             'score': best_score,
-            'result': result,
+            'fitness_breakdown': {
+                'calories_penalty': result.get('calories', 0),
+                'meals_count_penalty': result.get('meals_count', 0),
+                'required_types_penalty': result.get('required_types', 0),
+                'macros_penalty': result.get('macros', 0),
+                'allergens_penalty': result.get('allergens', 0),
+                'diversity_penalty': result.get('diversity', 0),
+                'diet_bonus': result.get('diet_bonus', 0),
+            },
+            'user_preferences': user_preferences,
+            'weekly_totals': {
+                'calories': round(weekly_totals['calories'], 2),
+                'protein': round(weekly_totals['protein'], 2),
+                'carbs': round(weekly_totals['carbs'], 2),
+                'fat': round(weekly_totals['fat'], 2),
+            },
             'days': result_days,
-            'meals_per_day': constraints.meals_per_day,
-            'diet_type': constraints.diet_type,
-            'calories_target_per_day': constraints.calories_target_per_day,
         }, status=status.HTTP_200_OK)
