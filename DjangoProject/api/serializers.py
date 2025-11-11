@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Recipe, UserDietPreferences
+from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -18,13 +18,15 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         return user
 
+
 class RecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
-        fields = ['id', 'name', 'description', 'meal_type', 'protein', 'carbs', 'fat', 'calories',
-                  'tags', "steps", 'n_steps', 'n_ingredients', 'ingredients', 'is_vegetarian', 'is_vegan']
-
-
+        fields = [
+            'id', 'name', 'description', 'meal_type', 'protein', 'carbs',
+            'fat', 'calories', 'tags', "steps", 'n_steps', 'n_ingredients',
+            'ingredients', 'is_vegetarian', 'is_vegan'
+        ]
 
 
 class UserDietPreferencesSerializer(serializers.ModelSerializer):
@@ -53,7 +55,6 @@ class UserDietPreferencesSerializer(serializers.ModelSerializer):
     def validate(self, data):
         instance = getattr(self, 'instance', None)
 
-        # Kalorie
         min_cal = data.get('min_calories_per_day',
                            getattr(instance, 'min_calories_per_day', None) if instance else None)
         max_cal = data.get('max_calories_per_day',
@@ -64,7 +65,6 @@ class UserDietPreferencesSerializer(serializers.ModelSerializer):
                 'min_calories_per_day': 'Minimum calories cannot be greater than maximum calories'
             })
 
-        # Białko
         min_protein = data.get('min_protein_per_day',
                                getattr(instance, 'min_protein_per_day', None) if instance else None)
         max_protein = data.get('max_protein_per_day',
@@ -75,7 +75,6 @@ class UserDietPreferencesSerializer(serializers.ModelSerializer):
                 'min_protein_per_day': 'Minimum protein cannot be greater than maximum protein'
             })
 
-        # Węglowodany
         min_carbs = data.get('min_carbs_per_day',
                              getattr(instance, 'min_carbs_per_day', None) if instance else None)
         max_carbs = data.get('max_carbs_per_day',
@@ -86,7 +85,6 @@ class UserDietPreferencesSerializer(serializers.ModelSerializer):
                 'min_carbs_per_day': 'Minimum carbs cannot be greater than maximum carbs'
             })
 
-        # Tłuszcze
         min_fat = data.get('min_fat_per_day',
                            getattr(instance, 'min_fat_per_day', None) if instance else None)
         max_fat = data.get('max_fat_per_day',
@@ -98,3 +96,63 @@ class UserDietPreferencesSerializer(serializers.ModelSerializer):
             })
 
         return data
+
+
+# POPRAWIONE SERIALIZERY Z DATAMI
+
+class DailyMealSerializer(serializers.ModelSerializer):
+    """Serializer dla dnia z pełnymi przepisami"""
+    recipes = RecipeSerializer(many=True, read_only=True)
+    daily_totals = serializers.SerializerMethodField()
+    day_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DailyMeal
+        fields = ['id', 'date', 'day_number', 'day_name', 'recipes', 'daily_totals']
+
+    def get_daily_totals(self, obj):
+        return obj.get_totals()
+
+    def get_day_name(self, obj):
+        return obj.get_day_name()
+
+
+class WeeklyMealPlanSerializer(serializers.ModelSerializer):
+    """Serializer dla tygodnia z wszystkimi dniami"""
+    days = DailyMealSerializer(many=True, read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    weekly_totals = serializers.SerializerMethodField()
+
+    class Meta:
+        model = WeeklyMealPlan
+        fields = [
+            'id', 'username', 'start_date', 'end_date', 'created_at',
+            'score', 'days', 'weekly_totals'
+        ]
+
+    def get_weekly_totals(self, obj):
+        """Oblicz sumy dla całego tygodnia"""
+        totals = {
+            'calories': 0.0,
+            'protein': 0.0,
+            'carbs': 0.0,
+            'fat': 0.0,
+        }
+
+        for day in obj.days.all():
+            day_totals = day.get_totals()
+            totals['calories'] += day_totals['calories']
+            totals['protein'] += day_totals['protein']
+            totals['carbs'] += day_totals['carbs']
+            totals['fat'] += day_totals['fat']
+
+        return totals
+
+
+class WeeklyMealPlanSummarySerializer(serializers.ModelSerializer):
+    """Lżejszy serializer bez szczegółów dni"""
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = WeeklyMealPlan
+        fields = ['id', 'username', 'start_date', 'end_date', 'created_at', 'score']

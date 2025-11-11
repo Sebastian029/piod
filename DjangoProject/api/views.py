@@ -1,10 +1,15 @@
-from rest_framework import status, generics, viewsets
+from rest_framework import status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.decorators import action
 from django.db import transaction
-from .serializers import RegisterSerializer, RecipeSerializer, UserDietPreferencesSerializer
-from .models import Recipe, UserDietPreferences
+from .serializers import (
+    RegisterSerializer, RecipeSerializer, UserDietPreferencesSerializer,
+    WeeklyMealPlanSerializer, WeeklyMealPlanSummarySerializer,
+    DailyMealSerializer
+)
+from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal
 from core.get_data import load_data, prepare_recipes
 from core.ga_types import GAConfig, MacroRange, MealPlanConstraints
 from core.ga_engine import evolve
@@ -17,7 +22,10 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"detail": "User registered successfully"}, status=status.HTTP_201_CREATED)
+        return Response(
+            {"detail": "User registered successfully"},
+            status=status.HTTP_201_CREATED
+        )
 
 
 class ProtectedView(APIView):
@@ -53,17 +61,13 @@ class UploadRecipesView(APIView):
 
     def upload_to_database(self, recipes_data):
         created_count = 0
-        skipped_count = 0
 
         with transaction.atomic():
             for recipe_data in recipes_data:
                 try:
-                    # Check if recipe already exists
                     if Recipe.objects.filter(name=recipe_data['name']).exists():
-                        skipped_count += 1
                         continue
 
-                    # Create Recipe with all fields
                     Recipe.objects.create(
                         name=recipe_data['name'],
                         description=recipe_data.get('description', ''),
@@ -84,28 +88,17 @@ class UploadRecipesView(APIView):
                     created_count += 1
 
                 except Exception as e:
-                    print(f"Error creating recipe {recipe_data.get('name', 'unknown')}: {str(e)}")
+                    print(f"Error creating recipe: {str(e)}")
                     continue
 
         return created_count
 
 
-
-class RecipeDetailView(APIView):
+class RecipeViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet do odczytu przepisów"""
     permission_classes = [AllowAny]
-
-    def get(self, request, pk=None):
-        if pk:
-            try:
-                recipe = Recipe.objects.get(pk=pk)
-                serializer = RecipeSerializer(recipe)
-                return Response(serializer.data)
-            except Recipe.DoesNotExist:
-                return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        else:
-            recipes = Recipe.objects.all()
-            serializer = RecipeSerializer(recipes, many=True)
-            return Response(serializer.data)
+    queryset = Recipe.objects.all()
+    serializer_class = RecipeSerializer
 
 
 class DeleteAllRecipesView(APIView):
@@ -138,7 +131,6 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
         preferences, created = UserDietPreferences.objects.get_or_create(
             user=request.user
         )
-
         serializer = UserDietPreferencesSerializer(preferences)
         return Response(serializer.data)
 
@@ -207,15 +199,68 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-class GenerateWeeklyPlanView(APIView):
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, viewsets
+from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
+from datetime import datetime, timedelta
+from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal
+from .serializers import (
+    WeeklyMealPlanSerializer, WeeklyMealPlanSummarySerializer,
+    DailyMealSerializer
+)
+from core.ga_types import GAConfig, MacroRange, MealPlanConstraints
+from core.ga_engine import evolve
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, viewsets
+from rest_framework.permissions import IsAuthenticated
+from django.db import transaction
+from datetime import datetime, timedelta
+from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal
+from .serializers import (
+    WeeklyMealPlanSerializer, WeeklyMealPlanSummarySerializer,
+    DailyMealSerializer
+)
+from core.ga_types import GAConfig, MacroRange, MealPlanConstraints
+from core.ga_engine import evolve
+
+
+class Generate3WeeksView(APIView):
+    """Generuje plany na OBECNY tydzień + 2 kolejne (razem 3 tygodnie)"""
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        try:
-            preferences, _ = UserDietPreferences.objects.get_or_create(user=request.user)
-        except Exception as e:
-            return Response({'detail': f'Preferences error: {e}'}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request):
+        preferences, _ = UserDietPreferences.objects.get_or_create(user=request.user)
 
+        # Pobierz przepisy
+        recipes = []
+        for r in Recipe.objects.all():
+            recipes.append({
+                'id': r.id,
+                'name': r.name,
+                'description': r.description,
+                'meal_type': r.meal_type,
+                'protein': float(r.protein),
+                'carbs': float(r.carbs),
+                'fat': float(r.fat),
+                'calories': float(r.calories),
+                'ingredients': list(r.ingredients or []),
+                'steps': list(r.steps or []),
+                'tags': r.tags,
+                'n_steps': int(r.n_steps),
+                'n_ingredients': int(r.n_ingredients),
+                'is_vegetarian': bool(r.is_vegetarian),
+                'is_vegan': bool(r.is_vegan),
+            })
+
+        if not recipes:
+            return Response({'detail': 'No recipes'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Constrainty
         if preferences.meals_per_day <= 1:
             required_types = ['lunch']
         elif preferences.meals_per_day == 2:
@@ -239,109 +284,162 @@ class GenerateWeeklyPlanView(APIView):
             diversity_window_days=7,
         )
 
-        qs = Recipe.objects.all()
-        recipes = []
-        for r in qs:
-            recipe_dict = {
-                'id': r.id,
-                'name': r.name,
-                'description': r.description,
-                'meal_type': r.meal_type,
-                'protein': float(r.protein),
-                'carbs': float(r.carbs),
-                'fat': float(r.fat),
-                'calories': float(r.calories),
-                'ingredients': list(r.ingredients or []),
-                'steps': list(r.steps or []),
-                'tags': r.tags,
-                'n_steps': int(r.n_steps),
-                'n_ingredients': int(r.n_ingredients),
-                'is_vegetarian': bool(r.is_vegetarian),
-                'is_vegan': bool(r.is_vegan),
-            }
-            recipes.append(recipe_dict)
-
-        if not recipes:
-            return Response({'detail': 'No recipes available. Load recipes first.'}, status=status.HTTP_400_BAD_REQUEST)
-
         ga = GAConfig()
-        best_plan, best_score, result = evolve(recipes, constraints, ga, rng_seed=1)
 
-        # Calculate weekly totals
-        result_days = []
-        weekly_totals = {
-            'calories': 0.0,
-            'protein': 0.0,
-            'carbs': 0.0,
-            'fat': 0.0,
-        }
+        # Usuń stare plany
+        WeeklyMealPlan.objects.filter(user=request.user).delete()
 
-        for d in range(constraints.days):
-            day_items = []
-            day_totals = {
+        created_plans = []
+
+        # OBLICZ DATY dla 3 tygodni
+        today = datetime.now().date()
+        current_week_start = WeeklyMealPlan.get_week_start(today)
+
+        try:
+            with transaction.atomic():
+                for week_offset in range(3):  # 0, 1, 2
+                    # Oblicz daty dla tego tygodnia
+                    week_start = current_week_start + timedelta(weeks=week_offset)
+                    week_end = WeeklyMealPlan.get_week_end(week_start)
+
+                    # Uruchom algorytm
+                    best_plan, best_score, result = evolve(
+                        recipes,
+                        constraints,
+                        ga,
+                        rng_seed=week_offset + 1
+                    )
+
+                    # Stwórz plan tygodniowy
+                    weekly_plan = WeeklyMealPlan.objects.create(
+                        user=request.user,
+                        start_date=week_start,
+                        end_date=week_end,
+                        score=best_score
+                    )
+
+                    # Stwórz dni
+                    for day_idx in range(7):
+                        day_date = week_start + timedelta(days=day_idx)
+
+                        daily_meal = DailyMeal.objects.create(
+                            weekly_plan=weekly_plan,
+                            date=day_date,
+                            day_number=day_idx + 1
+                        )
+
+                        # Dodaj przepisy
+                        recipe_ids = [recipes[idx]['id'] for idx in best_plan.plan[day_idx]]
+                        recipe_objects = Recipe.objects.filter(id__in=recipe_ids)
+                        daily_meal.recipes.set(recipe_objects)
+
+                    created_plans.append(weekly_plan)
+
+            serializer = WeeklyMealPlanSerializer(created_plans, many=True)
+
+            return Response({
+                'success': True,
+                'message': f'Wygenerowano plany na 3 tygodnie (od {current_week_start} do {created_plans[-1].end_date})!',
+                'weeks': serializer.data
+            }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'Error: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = WeeklyMealPlanSerializer
+
+    def get_queryset(self):
+        return WeeklyMealPlan.objects.filter(
+            user=self.request.user
+        ).prefetch_related('days__recipes')
+
+    def list(self, request):
+        """Lista wszystkich planów"""
+        queryset = self.get_queryset()
+        serializer = WeeklyMealPlanSummarySerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        """Szczegóły konkretnego tygodnia"""
+        try:
+            plan = self.get_queryset().get(pk=pk)
+            serializer = WeeklyMealPlanSerializer(plan)
+            return Response(serializer.data)
+        except WeeklyMealPlan.DoesNotExist:
+            return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['get'])
+    def current(self, request):
+        """Pobierz plan dla OBECNEGO tygodnia"""
+        today = datetime.now().date()
+        week_start = WeeklyMealPlan.get_week_start(today)
+
+        try:
+            plan = self.get_queryset().get(start_date=week_start)
+            serializer = WeeklyMealPlanSerializer(plan)
+            return Response(serializer.data)
+        except WeeklyMealPlan.DoesNotExist:
+            return Response({'detail': 'Brak planu na obecny tydzień'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['get'])
+    def by_date(self, request):
+        """Pobierz plan dla konkretnej daty (query param: ?date=2025-11-15)"""
+        date_str = request.query_params.get('date')
+        if not date_str:
+            return Response({'detail': 'Brak parametru date'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            week_start = WeeklyMealPlan.get_week_start(date)
+            plan = self.get_queryset().get(start_date=week_start)
+            serializer = WeeklyMealPlanSerializer(plan)
+            return Response(serializer.data)
+        except ValueError:
+            return Response({'detail': 'Zły format daty (użyj YYYY-MM-DD)'}, status=status.HTTP_400_BAD_REQUEST)
+        except WeeklyMealPlan.DoesNotExist:
+            return Response({'detail': 'Brak planu na ten tydzień'}, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['get'])
+    def current_test(self, request):
+        """Pobierz plan obecnego tygodnia + preferencje + porównanie"""
+        today = datetime.now().date()
+        week_start = WeeklyMealPlan.get_week_start(today)
+
+        try:
+            # Pobierz plan obecnego tygodnia
+            plan = self.get_queryset().get(start_date=week_start)
+
+            # Pobierz preferencje użytkownika
+            preferences, _ = UserDietPreferences.objects.get_or_create(user=request.user)
+
+            # Oblicz weekly totals z planu
+            weekly_actual = {
                 'calories': 0.0,
                 'protein': 0.0,
                 'carbs': 0.0,
                 'fat': 0.0,
             }
 
-            for idx in best_plan.plan[d]:
-                r = recipes[idx]
-                meal_data = {
-                    'id': r['id'],
-                    'name': r['name'],
-                    'meal_type': r['meal_type'],
-                    'calories': r['calories'],
-                    'protein': r['protein'],
-                    'carbs': r['carbs'],
-                    'fat': r['fat'],
-                }
-                day_items.append(meal_data)
+            for day in plan.days.all():
+                day_totals = day.get_totals()
+                weekly_actual['calories'] += day_totals['calories']
+                weekly_actual['protein'] += day_totals['protein']
+                weekly_actual['carbs'] += day_totals['carbs']
+                weekly_actual['fat'] += day_totals['fat']
 
-                # Sum for the day
-                day_totals['calories'] += r['calories']
-                day_totals['protein'] += r['protein']
-                day_totals['carbs'] += r['carbs']
-                day_totals['fat'] += r['fat']
-
-            # Sum for the week
-            weekly_totals['calories'] += day_totals['calories']
-            weekly_totals['protein'] += day_totals['protein']
-            weekly_totals['carbs'] += day_totals['carbs']
-            weekly_totals['fat'] += day_totals['fat']
-
-            result_days.append({
-                'day': d + 1,
-                'meals': day_items,
-                'daily_totals': {
-                    'calories': round(day_totals['calories'], 2),
-                    'protein': round(day_totals['protein'], 2),
-                    'carbs': round(day_totals['carbs'], 2),
-                    'fat': round(day_totals['fat'], 2),
-                }
-            })
-
-        # User preferences (targets)
-        user_preferences = {
-            'meals_per_day': preferences.meals_per_day,
-            'diet_type': preferences.diet_type,
-            'daily_targets': {
-                'calories': preferences.get_target_calories(),
-                'protein': {
-                    'min': preferences.min_protein_per_day,
-                    'max': preferences.max_protein_per_day,
+            # Oblicz weekly targets (7 dni * dzienne)
+            weekly_target = {
+                'calories': {
+                    'min': preferences.min_calories_per_day * 7,
+                    'max': preferences.max_calories_per_day * 7,
+                    'target': preferences.get_target_calories() * 7,
                 },
-                'carbs': {
-                    'min': preferences.min_carbs_per_day,
-                    'max': preferences.max_carbs_per_day,
-                },
-                'fat': {
-                    'min': preferences.min_fat_per_day,
-                    'max': preferences.max_fat_per_day,
-                },
-            },
-            'weekly_targets': {
-                'calories': preferences.get_target_calories() * 7,
                 'protein': {
                     'min': preferences.min_protein_per_day * 7,
                     'max': preferences.max_protein_per_day * 7,
@@ -354,28 +452,127 @@ class GenerateWeeklyPlanView(APIView):
                     'min': preferences.min_fat_per_day * 7,
                     'max': preferences.max_fat_per_day * 7,
                 },
-            },
-            'excluded_ingredients': list(preferences.excluded_ingredients or []),
-            'allergens': list(preferences.allergens or []),
-        }
+            }
 
-        return Response({
-            'score': best_score,
-            'fitness_breakdown': {
-                'calories_penalty': result.get('calories', 0),
-                'meals_count_penalty': result.get('meals_count', 0),
-                'required_types_penalty': result.get('required_types', 0),
-                'macros_penalty': result.get('macros', 0),
-                'allergens_penalty': result.get('allergens', 0),
-                'diversity_penalty': result.get('diversity', 0),
-                'diet_bonus': result.get('diet_bonus', 0),
-            },
-            'user_preferences': user_preferences,
-            'weekly_totals': {
-                'calories': round(weekly_totals['calories'], 2),
-                'protein': round(weekly_totals['protein'], 2),
-                'carbs': round(weekly_totals['carbs'], 2),
-                'fat': round(weekly_totals['fat'], 2),
-            },
-            'days': result_days,
-        }, status=status.HTTP_200_OK)
+            # Oblicz różnice i procenty
+            comparison = {
+                'calories': {
+                    'actual': round(weekly_actual['calories'], 2),
+                    'target': round(weekly_target['calories']['target'], 2),
+                    'min': round(weekly_target['calories']['min'], 2),
+                    'max': round(weekly_target['calories']['max'], 2),
+                    'difference': round(weekly_actual['calories'] - weekly_target['calories']['target'], 2),
+                    'percentage': round((weekly_actual['calories'] / weekly_target['calories']['target'] * 100) if
+                                        weekly_target['calories']['target'] > 0 else 0, 1),
+                    'in_range': weekly_target['calories']['min'] <= weekly_actual['calories'] <=
+                                weekly_target['calories']['max'],
+                },
+                'protein': {
+                    'actual': round(weekly_actual['protein'], 2),
+                    'min': round(weekly_target['protein']['min'], 2),
+                    'max': round(weekly_target['protein']['max'], 2),
+                    'difference_from_min': round(weekly_actual['protein'] - weekly_target['protein']['min'], 2),
+                    'in_range': weekly_target['protein']['min'] <= weekly_actual['protein'] <= weekly_target['protein'][
+                        'max'],
+                },
+                'carbs': {
+                    'actual': round(weekly_actual['carbs'], 2),
+                    'min': round(weekly_target['carbs']['min'], 2),
+                    'max': round(weekly_target['carbs']['max'], 2),
+                    'difference_from_min': round(weekly_actual['carbs'] - weekly_target['carbs']['min'], 2),
+                    'in_range': weekly_target['carbs']['min'] <= weekly_actual['carbs'] <= weekly_target['carbs'][
+                        'max'],
+                },
+                'fat': {
+                    'actual': round(weekly_actual['fat'], 2),
+                    'min': round(weekly_target['fat']['min'], 2),
+                    'max': round(weekly_target['fat']['max'], 2),
+                    'difference_from_min': round(weekly_actual['fat'] - weekly_target['fat']['min'], 2),
+                    'in_range': weekly_target['fat']['min'] <= weekly_actual['fat'] <= weekly_target['fat']['max'],
+                },
+            }
+
+            # Serializuj plan
+            plan_serializer = WeeklyMealPlanSerializer(plan)
+
+            # Preferencje użytkownika
+            user_preferences = {
+                'meals_per_day': preferences.meals_per_day,
+                'diet_type': preferences.diet_type,
+                'daily_targets': {
+                    'calories': {
+                        'min': preferences.min_calories_per_day,
+                        'max': preferences.max_calories_per_day,
+                        'target': preferences.get_target_calories(),
+                    },
+                    'protein': {
+                        'min': preferences.min_protein_per_day,
+                        'max': preferences.max_protein_per_day,
+                    },
+                    'carbs': {
+                        'min': preferences.min_carbs_per_day,
+                        'max': preferences.max_carbs_per_day,
+                    },
+                    'fat': {
+                        'min': preferences.min_fat_per_day,
+                        'max': preferences.max_fat_per_day,
+                    },
+                },
+                'excluded_ingredients': list(preferences.excluded_ingredients or []),
+                'allergens': list(preferences.allergens or []),
+            }
+
+            # Zwróć wszystko razem
+            return Response({
+                'plan': plan_serializer.data,
+                'user_preferences': user_preferences,
+                'weekly_comparison': comparison,
+                'summary': {
+                    'all_in_range': all([
+                        comparison['calories']['in_range'],
+                        comparison['protein']['in_range'],
+                        comparison['carbs']['in_range'],
+                        comparison['fat']['in_range'],
+                    ]),
+                    'message': 'Plan spełnia wszystkie wymagania!' if all([
+                        comparison['calories']['in_range'],
+                        comparison['protein']['in_range'],
+                        comparison['carbs']['in_range'],
+                        comparison['fat']['in_range'],
+                    ]) else 'Plan nie spełnia niektórych wymagań.'
+                }
+            })
+
+        except WeeklyMealPlan.DoesNotExist:
+            return Response(
+                {'detail': 'Brak planu na obecny tydzień'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @action(detail=False, methods=['delete'])
+    def delete_all(self, request):
+        count = self.get_queryset().count()
+        self.get_queryset().delete()
+        return Response({'detail': f'Usunięto {count} planów'}, status=status.HTTP_200_OK)
+
+
+class DailyMealView(APIView):
+    """Pobierz posiłki dla konkretnej daty"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, date_str):
+        """date_str format: YYYY-MM-DD np. 2025-11-15"""
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({'detail': 'Zły format daty (użyj YYYY-MM-DD)'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            daily_meal = DailyMeal.objects.prefetch_related('recipes').get(
+                weekly_plan__user=request.user,
+                date=date
+            )
+            serializer = DailyMealSerializer(daily_meal)
+            return Response(serializer.data)
+        except DailyMeal.DoesNotExist:
+            return Response({'detail': f'Brak planu na {date}'}, status=status.HTTP_404_NOT_FOUND)
