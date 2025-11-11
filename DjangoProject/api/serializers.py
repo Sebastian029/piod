@@ -101,37 +101,31 @@ class UserDietPreferencesSerializer(serializers.ModelSerializer):
 # POPRAWIONE SERIALIZERY Z DATAMI
 
 class DailyMealSerializer(serializers.ModelSerializer):
-    """Serializer dla dnia z pełnymi przepisami"""
     recipes = RecipeSerializer(many=True, read_only=True)
     daily_totals = serializers.SerializerMethodField()
-    day_name = serializers.SerializerMethodField()
 
     class Meta:
         model = DailyMeal
-        fields = ['id', 'date', 'day_number', 'day_name', 'recipes', 'daily_totals']
+        fields = ['id', 'date', 'day_number', 'recipes', 'daily_totals']
 
     def get_daily_totals(self, obj):
         return obj.get_totals()
 
-    def get_day_name(self, obj):
-        return obj.get_day_name()
+
 
 
 class WeeklyMealPlanSerializer(serializers.ModelSerializer):
-    """Serializer dla tygodnia z wszystkimi dniami"""
     days = DailyMealSerializer(many=True, read_only=True)
-    username = serializers.CharField(source='user.username', read_only=True)
     weekly_totals = serializers.SerializerMethodField()
 
     class Meta:
         model = WeeklyMealPlan
         fields = [
-            'id', 'username', 'start_date', 'end_date', 'created_at',
+            'start_date', 'end_date',
             'score', 'days', 'weekly_totals'
         ]
 
     def get_weekly_totals(self, obj):
-        """Oblicz sumy dla całego tygodnia"""
         totals = {
             'calories': 0.0,
             'protein': 0.0,
@@ -150,9 +144,7 @@ class WeeklyMealPlanSerializer(serializers.ModelSerializer):
 
 
 class WeeklyMealPlanSummarySerializer(serializers.ModelSerializer):
-    """Lżejszy serializer bez szczegółów dni"""
-    username = serializers.CharField(source='user.username', read_only=True)
 
     class Meta:
         model = WeeklyMealPlan
-        fields = ['id', 'username', 'start_date', 'end_date', 'created_at', 'score']
+        fields = ['start_date', 'end_date', 'score']

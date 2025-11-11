@@ -1,18 +1,24 @@
+from datetime import datetime, timedelta
+from django.db import transaction
+
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.decorators import action
-from django.db import transaction
-from .serializers import (
-    RegisterSerializer, RecipeSerializer, UserDietPreferencesSerializer,
-    WeeklyMealPlanSerializer, WeeklyMealPlanSummarySerializer,
-    DailyMealSerializer
-)
+
 from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal
-from core.get_data import load_data, prepare_recipes
-from core.ga_types import GAConfig, MacroRange, MealPlanConstraints
+from .serializers import (
+    DailyMealSerializer,
+    RecipeSerializer,
+    RegisterSerializer,
+    UserDietPreferencesSerializer,
+    WeeklyMealPlanSerializer,
+    WeeklyMealPlanSummarySerializer,
+)
 from core.ga_engine import evolve
+from core.ga_types import GAConfig, MacroRange, MealPlanConstraints
+from core.get_data import load_data, prepare_recipes
 
 
 class RegisterView(APIView):
@@ -95,7 +101,6 @@ class UploadRecipesView(APIView):
 
 
 class RecipeViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet do odczytu przepisów"""
     permission_classes = [AllowAny]
     queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
@@ -199,44 +204,12 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status, viewsets
-from rest_framework.permissions import IsAuthenticated
-from django.db import transaction
-from datetime import datetime, timedelta
-from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal
-from .serializers import (
-    WeeklyMealPlanSerializer, WeeklyMealPlanSummarySerializer,
-    DailyMealSerializer
-)
-from core.ga_types import GAConfig, MacroRange, MealPlanConstraints
-from core.ga_engine import evolve
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status, viewsets
-from rest_framework.permissions import IsAuthenticated
-from django.db import transaction
-from datetime import datetime, timedelta
-from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal
-from .serializers import (
-    WeeklyMealPlanSerializer, WeeklyMealPlanSummarySerializer,
-    DailyMealSerializer
-)
-from core.ga_types import GAConfig, MacroRange, MealPlanConstraints
-from core.ga_engine import evolve
-
-
-class Generate3WeeksView(APIView):
-    """Generuje plany na OBECNY tydzień + 2 kolejne (razem 3 tygodnie)"""
+class GeneratePlanView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         preferences, _ = UserDietPreferences.objects.get_or_create(user=request.user)
 
-        # Pobierz przepisy
         recipes = []
         for r in Recipe.objects.all():
             recipes.append({
@@ -260,7 +233,6 @@ class Generate3WeeksView(APIView):
         if not recipes:
             return Response({'detail': 'No recipes'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Constrainty
         if preferences.meals_per_day <= 1:
             required_types = ['lunch']
         elif preferences.meals_per_day == 2:
@@ -286,39 +258,35 @@ class Generate3WeeksView(APIView):
 
         ga = GAConfig()
 
-        # Usuń stare plany
         WeeklyMealPlan.objects.filter(user=request.user).delete()
 
         created_plans = []
 
-        # OBLICZ DATY dla 3 tygodni
         today = datetime.now().date()
         current_week_start = WeeklyMealPlan.get_week_start(today)
 
         try:
             with transaction.atomic():
-                for week_offset in range(3):  # 0, 1, 2
-                    # Oblicz daty dla tego tygodnia
+                for week_offset in range(3):
                     week_start = current_week_start + timedelta(weeks=week_offset)
                     week_end = WeeklyMealPlan.get_week_end(week_start)
 
-                    # Uruchom algorytm
                     best_plan, best_score, result = evolve(
                         recipes,
                         constraints,
                         ga,
-                        rng_seed=week_offset + 1
+                        rng_seed= week_offset
                     )
 
-                    # Stwórz plan tygodniowy
-                    weekly_plan = WeeklyMealPlan.objects.create(
+                    weekly_plan, created = WeeklyMealPlan.objects.update_or_create(
                         user=request.user,
                         start_date=week_start,
-                        end_date=week_end,
-                        score=best_score
+                        defaults={
+                            'end_date': week_end,
+                            'score': best_score
+                        }
                     )
 
-                    # Stwórz dni
                     for day_idx in range(7):
                         day_date = week_start + timedelta(days=day_idx)
 
@@ -328,7 +296,6 @@ class Generate3WeeksView(APIView):
                             day_number=day_idx + 1
                         )
 
-                        # Dodaj przepisy
                         recipe_ids = [recipes[idx]['id'] for idx in best_plan.plan[day_idx]]
                         recipe_objects = Recipe.objects.filter(id__in=recipe_ids)
                         daily_meal.recipes.set(recipe_objects)
@@ -339,7 +306,6 @@ class Generate3WeeksView(APIView):
 
             return Response({
                 'success': True,
-                'message': f'Wygenerowano plany na 3 tygodnie (od {current_week_start} do {created_plans[-1].end_date})!',
                 'weeks': serializer.data
             }, status=status.HTTP_201_CREATED)
 
@@ -359,24 +325,8 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
             user=self.request.user
         ).prefetch_related('days__recipes')
 
-    def list(self, request):
-        """Lista wszystkich planów"""
-        queryset = self.get_queryset()
-        serializer = WeeklyMealPlanSummarySerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, pk=None):
-        """Szczegóły konkretnego tygodnia"""
-        try:
-            plan = self.get_queryset().get(pk=pk)
-            serializer = WeeklyMealPlanSerializer(plan)
-            return Response(serializer.data)
-        except WeeklyMealPlan.DoesNotExist:
-            return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
-
     @action(detail=False, methods=['get'])
     def current(self, request):
-        """Pobierz plan dla OBECNEGO tygodnia"""
         today = datetime.now().date()
         week_start = WeeklyMealPlan.get_week_start(today)
 
@@ -385,14 +335,13 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
             serializer = WeeklyMealPlanSerializer(plan)
             return Response(serializer.data)
         except WeeklyMealPlan.DoesNotExist:
-            return Response({'detail': 'Brak planu na obecny tydzień'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'Brak planu'}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['get'])
     def by_date(self, request):
-        """Pobierz plan dla konkretnej daty (query param: ?date=2025-11-15)"""
         date_str = request.query_params.get('date')
         if not date_str:
-            return Response({'detail': 'Brak parametru date'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Brak daty'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             date = datetime.strptime(date_str, '%Y-%m-%d').date()
@@ -401,24 +350,19 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
             serializer = WeeklyMealPlanSerializer(plan)
             return Response(serializer.data)
         except ValueError:
-            return Response({'detail': 'Zły format daty (użyj YYYY-MM-DD)'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
         except WeeklyMealPlan.DoesNotExist:
-            return Response({'detail': 'Brak planu na ten tydzień'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'Brak planu'}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['get'])
     def current_test(self, request):
-        """Pobierz plan obecnego tygodnia + preferencje + porównanie"""
         today = datetime.now().date()
         week_start = WeeklyMealPlan.get_week_start(today)
 
         try:
-            # Pobierz plan obecnego tygodnia
             plan = self.get_queryset().get(start_date=week_start)
-
-            # Pobierz preferencje użytkownika
             preferences, _ = UserDietPreferences.objects.get_or_create(user=request.user)
 
-            # Oblicz weekly totals z planu
             weekly_actual = {
                 'calories': 0.0,
                 'protein': 0.0,
@@ -433,7 +377,6 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
                 weekly_actual['carbs'] += day_totals['carbs']
                 weekly_actual['fat'] += day_totals['fat']
 
-            # Oblicz weekly targets (7 dni * dzienne)
             weekly_target = {
                 'calories': {
                     'min': preferences.min_calories_per_day * 7,
@@ -454,7 +397,6 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
                 },
             }
 
-            # Oblicz różnice i procenty
             comparison = {
                 'calories': {
                     'actual': round(weekly_actual['calories'], 2),
@@ -492,10 +434,8 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
                 },
             }
 
-            # Serializuj plan
             plan_serializer = WeeklyMealPlanSerializer(plan)
 
-            # Preferencje użytkownika
             user_preferences = {
                 'meals_per_day': preferences.meals_per_day,
                 'diet_type': preferences.diet_type,
@@ -522,7 +462,6 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
                 'allergens': list(preferences.allergens or []),
             }
 
-            # Zwróć wszystko razem
             return Response({
                 'plan': plan_serializer.data,
                 'user_preferences': user_preferences,
@@ -534,18 +473,13 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
                         comparison['carbs']['in_range'],
                         comparison['fat']['in_range'],
                     ]),
-                    'message': 'Plan spełnia wszystkie wymagania!' if all([
-                        comparison['calories']['in_range'],
-                        comparison['protein']['in_range'],
-                        comparison['carbs']['in_range'],
-                        comparison['fat']['in_range'],
-                    ]) else 'Plan nie spełnia niektórych wymagań.'
+
                 }
             })
 
         except WeeklyMealPlan.DoesNotExist:
             return Response(
-                {'detail': 'Brak planu na obecny tydzień'},
+                {'detail': 'Brak planu'},
                 status=status.HTTP_404_NOT_FOUND
             )
 
@@ -553,19 +487,17 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
     def delete_all(self, request):
         count = self.get_queryset().count()
         self.get_queryset().delete()
-        return Response({'detail': f'Usunięto {count} planów'}, status=status.HTTP_200_OK)
+        return Response({'detail': f'Succes'}, status=status.HTTP_200_OK)
 
 
 class DailyMealView(APIView):
-    """Pobierz posiłki dla konkretnej daty"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request, date_str):
-        """date_str format: YYYY-MM-DD np. 2025-11-15"""
         try:
             date = datetime.strptime(date_str, '%Y-%m-%d').date()
         except ValueError:
-            return Response({'detail': 'Zły format daty (użyj YYYY-MM-DD)'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             daily_meal = DailyMeal.objects.prefetch_related('recipes').get(
@@ -575,4 +507,4 @@ class DailyMealView(APIView):
             serializer = DailyMealSerializer(daily_meal)
             return Response(serializer.data)
         except DailyMeal.DoesNotExist:
-            return Response({'detail': f'Brak planu na {date}'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': f'Brak planu'}, status=status.HTTP_404_NOT_FOUND)

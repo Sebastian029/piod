@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 
 
 class Recipe(models.Model):
-    # BEZ ZMIAN - Twój model Recipe
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, default='')
     meal_type = models.CharField(max_length=50)
@@ -27,7 +26,6 @@ class Recipe(models.Model):
 
 
 class UserDietPreferences(models.Model):
-    # BEZ ZMIAN - Twój model
     DIET_TYPE_CHOICES = [
         ('standard', 'Standardowa'),
         ('vegetarian', 'Wegetariańska'),
@@ -78,28 +76,20 @@ class UserDietPreferences(models.Model):
         return (self.min_calories_per_day + self.max_calories_per_day) / 2
 
 
-# NOWE MODELE Z DATAMI
 class WeeklyMealPlan(models.Model):
-    """Plan posiłków na konkretny tydzień (z datami)"""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='weekly_plans')
 
-    # DATY zamiast week_number
-    start_date = models.DateField()  # Poniedziałek
-    end_date = models.DateField()  # Niedziela
+    start_date = models.DateField()
+    end_date = models.DateField()
 
-    created_at = models.DateTimeField(auto_now_add=True)
     score = models.FloatField(default=0.0)
 
     class Meta:
         ordering = ['start_date']
         unique_together = ['user', 'start_date']
 
-    def __str__(self):
-        return f"{self.user.username} - {self.start_date} do {self.end_date}"
-
     @staticmethod
     def get_week_start(date=None):
-        """Zwraca poniedziałek dla danej daty"""
         if date is None:
             date = datetime.now().date()
         start = date - timedelta(days=date.weekday())
@@ -107,12 +97,10 @@ class WeeklyMealPlan(models.Model):
 
     @staticmethod
     def get_week_end(start_date):
-        """Zwraca niedzielę dla danego poniedziałku"""
         return start_date + timedelta(days=6)
 
 
 class DailyMeal(models.Model):
-    """Posiłki na konkretny dzień"""
     weekly_plan = models.ForeignKey(WeeklyMealPlan, on_delete=models.CASCADE, related_name='days')
 
     date = models.DateField()
@@ -124,16 +112,8 @@ class DailyMeal(models.Model):
         ordering = ['date']
         unique_together = ['weekly_plan', 'date']
 
-    def __str__(self):
-        return f"{self.date} ({self.get_day_name()})"
-
-    def get_day_name(self):
-        """Zwraca nazwę dnia po polsku"""
-        days = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela']
-        return days[self.day_number - 1]
 
     def get_totals(self):
-        """Oblicz sumy kalorii i makro dla tego dnia"""
         recipes_list = self.recipes.all()
         return {
             'calories': sum(r.calories for r in recipes_list),
