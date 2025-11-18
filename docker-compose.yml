@@ -10,28 +10,5 @@ services:
     ports:
       - "5432:5432"
 
-  web:
-    build:
-      context: .
-      dockerfile: DjangoProject/Dockerfile
-    environment:
-      DB_ENGINE: django.db.backends.postgresql
-      DB_NAME: ${POSTGRES_DB:-piod}
-      DB_USER: ${POSTGRES_USER:-piod}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-piod}
-      DB_HOST: db
-      DB_PORT: 5432
-      ALLOWED_HOSTS: "*"
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-changemejwt}
-      DEBUG: "True"
-    depends_on:
-      - db
-    ports:
-      - "8000:8000"
-    volumes:
-      - static-data:/app/DjangoProject/staticfiles
-
 volumes:
   db-data:
-  static-data:
-
