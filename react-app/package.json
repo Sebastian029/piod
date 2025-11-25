@@ -11,6 +11,8 @@
     "gen-api-client": "openapi-generator-cli generate -i http://localhost:8000/api/schema/ -g typescript-axios -o src/api --global-property 'apis,models'"
   },
   "dependencies": {
+    "@openapitools/openapi-generator-cli": "^2.25.2",
+    "axios": "^1.13.2",
     "lucide-react": "^0.548.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
