@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal
 from .serializers import (
@@ -94,7 +94,6 @@ class UploadRecipesView(APIView):
                     )
 
                     created_count += 1
-
                 except Exception as e:
                     print(f"Error creating recipe: {str(e)}")
                     continue
@@ -134,6 +133,7 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = UserDietPreferencesSerializer
 
+    @extend_schema(responses=UserDietPreferencesSerializer)
     def list(self, request):
         preferences, created = UserDietPreferences.objects.get_or_create(
             user=request.user
@@ -328,6 +328,7 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
         ).prefetch_related('days__recipes')
 
     @action(detail=False, methods=['get'])
+    @extend_schema(responses=WeeklyMealPlanSerializer)
     def current(self, request):
         today = datetime.now().date()
         week_start = WeeklyMealPlan.get_week_start(today)
@@ -340,6 +341,12 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({'detail': 'Brak planu'}, status=status.HTTP_404_NOT_FOUND)
 
     @action(detail=False, methods=['get'])
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name='date', type=str, required=True, location=OpenApiParameter.QUERY)
+        ],
+        responses=WeeklyMealPlanSerializer
+    )
     def by_date(self, request):
         date_str = request.query_params.get('date')
         if not date_str:
@@ -495,6 +502,7 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
 class DailyMealView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses=DailyMealSerializer)
     def get(self, request, date_str):
         try:
             date = datetime.strptime(date_str, '%Y-%m-%d').date()
