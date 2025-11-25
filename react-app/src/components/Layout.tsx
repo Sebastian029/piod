@@ -33,7 +33,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               <span className="visible-sm">Survey</span>
             </Link>
             <Link
-              to="/meal-plan"
+              to="/mealplan"
+              state={{ shouldRegenerate: false }}
               className={`nav-link${isActive("/meal-plan") ? " active" : ""}`}
             >
               <span className="hidden-sm">Meal Plan</span>

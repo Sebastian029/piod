@@ -1,73 +1,79 @@
-import { Layout } from "../../components/Layout";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
+
+import { type PatchedUserDietPreferences, MealPlanApi, DietTypeEnum } from "../../api";
+import { Layout } from "../../components/Layout";
 import styles from "./Questionaire.module.css"; 
 
-interface UserPreferences {
-  dietTypes: string[];
-  mealsPerDay: number;
-  dailyCalories: number;
-  preferredMeals: string[];
-  allergies: string[];
-  dislikedIngredients: string[];
-  vegetarianDays: number;
-}
 
-const DIET_TYPES = [
-  "Omnivore",
-  "Vegetarian",
-  "Vegan",
-  "Gluten-free",
-  "Keto",
-  "Low-carb",
-  "High-protein",
+//TODO retrieve ALL this stuff from API
+
+const DIET_TYPES: string[] = [
+  DietTypeEnum.Standard,
+  DietTypeEnum.Vegetarian,
+  DietTypeEnum.Vegan,
+]
+
+const MEAL_OPTIONS = [
+  "breakfast", 
+  "lunch", 
+  "dinner", 
+  "snack"
 ];
 
-const MEAL_OPTIONS = ["Breakfast", "Lunch", "Dinner", "Snacks"];
-
 const ALLERGY_OPTIONS = [
-  "Nuts",
-  "Dairy",
-  "Shellfish",
-  "Eggs",
-  "Soy",
-  "Wheat",
-  "Sesame",
+  "nuts",
+  "dairy",
+  "shellfish",
+  "eggs",
+  "soy",
+  "wheat",
+  "sesame",
 ];
 
 const DISLIKED_INGREDIENTS = [
-  "Mushrooms",
-  "Olives",
-  "Cilantro",
-  "Spicy",
-  "Liver",
-  "Seafood",
-  "Beans",
+  "mushrooms",
+  "olives",
+  "cilantro",
+  "spicy",
+  "liver",
+  "seafood",
+  "beans",
 ];
 
 export default function Questionnaire() {
   const navigate = useNavigate();
+  
   const [step, setStep] = useState(0);
-  const [preferences, setPreferences] = useState<UserPreferences>({
-    dietTypes: [],
-    mealsPerDay: 3,
-    dailyCalories: 2000,
-    preferredMeals: ["Breakfast", "Lunch", "Dinner"],
-    allergies: [],
-    dislikedIngredients: [],
-    vegetarianDays: 0,
+  const [preferences, setPreferences] = useState<PatchedUserDietPreferences>({
+    diet_type: "standard",
+    meals_per_day: 3,
+    min_calories_per_day: 1500,
+    max_calories_per_day: 3000,
+    // preferred_meals: [], //TODO preferred meals
+    //TODO min/max_protein_per_day
+    //TODO min/max_carbs_per_day
+    //TODO min/max_fat_per_day
+    allergens: [],
+    excluded_ingredients: [],
+    //TODO vegeterian_days
   });
+  //TODO remove when preferred_meals is available
+  const [preferredMeals, setPreferredMeals] = useState<string[]>(["breakfast", "lunch", "dinner"]);
+  //TODO remove when preferred_meals is available
+  const [vegetarianDays, setVegetarianDays] = useState<number>(0);
 
   const toggleMultiSelect = (
     field: keyof Pick<
-      UserPreferences,
-      "dietTypes" | "preferredMeals" | "allergies" | "dislikedIngredients"
+      PatchedUserDietPreferences,
+      //TODO add back preferred_meals when available
+      "allergens" | "excluded_ingredients" 
     >,
     value: string
   ) => {
     setPreferences((prev) => {
-      const current = prev[field];
+      const current = prev[field] as string[];
       if (current.includes(value)) {
         return {
           ...prev,
@@ -82,6 +88,18 @@ export default function Questionnaire() {
     });
   };
 
+  const togglePreferredMealsMultiSelect = (
+    value: string
+  ) => {
+    setPreferredMeals((prev) => {
+      if (prev.includes(value)) {
+        return prev.filter((item) => item !== value)
+      } else {
+        return [...prev, value]
+      }
+    })
+  }
+
   const handleNext = () => {
     if (step < 4) {
       setStep(step + 1);
@@ -94,9 +112,13 @@ export default function Questionnaire() {
     }
   };
 
-  const handleSubmit = () => {
-    localStorage.setItem("mealPlanPreferences", JSON.stringify(preferences));
-    navigate("/mealplan");
+  const handleSubmit = async () => {
+    //TODO add create_or_update in API, there is no way currently to only check if preferences exist
+    await MealPlanApi.preferences.preferencesList()
+    await MealPlanApi.preferences.preferencesPartialUpdate(preferences)
+    navigate("/mealplan", { state: { 
+      shouldRegenerate: true
+    }});
   };
 
   const progressPercentage = ((step + 1) / 5) * 100;
@@ -122,21 +144,21 @@ export default function Questionnaire() {
           <div>
             <h2 className={styles.stepTitle}>Diet Type</h2>
             <p className={styles.stepDesc}>
-              Select all diet types that apply to you or your preferences.
+              Select diet type that applies to you or your preferences.
             </p>
           </div>
           <div className={styles.gridList}>
             {DIET_TYPES.map((diet) => (
               <button
                 key={diet}
-                onClick={() => toggleMultiSelect("dietTypes", diet)}
+                onClick={() => setPreferences((prev) => ({ ...prev, diet_type: diet as DietTypeEnum }))}
                 className={`${styles.buttonOption} ${
-                  preferences.dietTypes.includes(diet) ? styles.buttonActive : ""
+                  preferences.diet_type == diet ? styles.buttonActive : ""
                 }`}
               >
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                  <span>{diet}</span>
-                  {preferences.dietTypes.includes(diet) && <Check className="icon" />}
+                  <span style={{'textTransform': "capitalize"}}>{diet}</span>
+                  {preferences.diet_type == diet && <Check className="icon" />}
                 </div>
               </button>
             ))}
@@ -158,10 +180,10 @@ export default function Questionnaire() {
               <button
                 key={num}
                 onClick={() =>
-                  setPreferences((prev) => ({ ...prev, mealsPerDay: num }))
+                  setPreferences((prev) => ({ ...prev, meals_per_day: num }))
                 }
                 className={`${styles.buttonOption} ${
-                  preferences.mealsPerDay === num ? styles.buttonActive : ""
+                  preferences.meals_per_day === num ? styles.buttonActive : ""
                 }`}
               >
                 {num}
@@ -183,7 +205,7 @@ export default function Questionnaire() {
               <div className={styles.sliderLabelRow}>
                 <label className={styles.sliderLabelRow}>Calories</label>
                 <span className={styles.sliderValue}>
-                  {preferences.dailyCalories}
+                  from {preferences.min_calories_per_day} to {preferences.max_calories_per_day}
                 </span>
               </div>
               <input
@@ -191,11 +213,25 @@ export default function Questionnaire() {
                 min="1200"
                 max="4000"
                 step="100"
-                value={preferences.dailyCalories}
+                value={preferences.min_calories_per_day}
                 onChange={(e) =>
                   setPreferences((prev) => ({
                     ...prev,
-                    dailyCalories: parseInt(e.target.value),
+                    min_calories_per_day: parseInt(e.target.value),
+                  }))
+                }
+                className={styles.sliderRange}
+              />
+              <input
+                type="range"
+                min="1200"
+                max="4000"
+                step="100"
+                value={preferences.max_calories_per_day}
+                onChange={(e) =>
+                  setPreferences((prev) => ({
+                    ...prev,
+                    max_calories_per_day: parseInt(e.target.value),
                   }))
                 }
                 className={styles.sliderRange}
@@ -205,7 +241,7 @@ export default function Questionnaire() {
                 <span>4000</span>
               </div>
             </div>
-            <div className={styles.gridButtons}>
+            {/* <div className={styles.gridButtons}>
               {[1500, 1800, 2000, 2500, 3000].map((cal) => (
                 <button
                   key={cal}
@@ -222,7 +258,7 @@ export default function Questionnaire() {
                   {cal}
                 </button>
               ))}
-            </div>
+            </div> */}
           </div>
         </div>
       )}
@@ -240,14 +276,14 @@ export default function Questionnaire() {
             {MEAL_OPTIONS.map((meal) => (
               <button
                 key={meal}
-                onClick={() => toggleMultiSelect("preferredMeals", meal)}
+                onClick={() => togglePreferredMealsMultiSelect(meal)}
                 className={`${styles.buttonOption} ${
-                  preferences.preferredMeals.includes(meal) ? styles.buttonActive : ""
+                  preferredMeals.includes(meal) ? styles.buttonActive : ""
                 }`}
               >
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                  <span>{meal}</span>
-                  {preferences.preferredMeals.includes(meal) && <Check className="icon" />}
+                  <span style={{'textTransform': "capitalize"}}>{meal}</span>
+                  {preferredMeals.includes(meal) && <Check className="icon" />}
                 </div>
               </button>
             ))}
@@ -262,17 +298,12 @@ export default function Questionnaire() {
               min="0"
               max="7"
               step="1"
-              value={preferences.vegetarianDays}
-              onChange={(e) =>
-                setPreferences((prev) => ({
-                  ...prev,
-                  vegetarianDays: parseInt(e.target.value),
-                }))
-              }
+              value={vegetarianDays}
+              onChange={(e) => setVegetarianDays(parseInt(e.target.value))}
               className={styles.vegSlider}
             />
             <div className={styles.vegValue}>
-              {preferences.vegetarianDays} days per week
+              {vegetarianDays} days per week
             </div>
           </div>
         </div>
@@ -294,14 +325,14 @@ export default function Questionnaire() {
                 {ALLERGY_OPTIONS.map((allergy) => (
                   <button
                     key={allergy}
-                    onClick={() => toggleMultiSelect("allergies", allergy)}
+                    onClick={() => toggleMultiSelect("allergens", allergy)}
                     className={`${styles.buttonOption} ${
-                      preferences.allergies.includes(allergy) ? styles.buttonRed : ""
+                      preferences.allergens.includes(allergy) ? styles.buttonRed : ""
                     }`}
                   >
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <span>{allergy}</span>
-                      {preferences.allergies.includes(allergy) && <Check className="icon" />}
+                      <span style={{'textTransform': "capitalize"}}>{allergy}</span>
+                      {preferences.allergens.includes(allergy) && <Check className="icon" />}
                     </div>
                   </button>
                 ))}
@@ -314,15 +345,15 @@ export default function Questionnaire() {
                   <button
                     key={ingredient}
                     onClick={() =>
-                      toggleMultiSelect("dislikedIngredients", ingredient)
+                      toggleMultiSelect("excluded_ingredients", ingredient)
                     }
                     className={`${styles.buttonOption} ${
-                      preferences.dislikedIngredients.includes(ingredient) ? styles.buttonAmber : ""
+                      preferences.excluded_ingredients.includes(ingredient) ? styles.buttonAmber : ""
                     }`}
                   >
                     <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <span>{ingredient}</span>
-                      {preferences.dislikedIngredients.includes(ingredient) && <Check className="icon" />}
+                      <span style={{'textTransform': "capitalize"}}>{ingredient}</span>
+                      {preferences.excluded_ingredients.includes(ingredient) && <Check className="icon" />}
                     </div>
                   </button>
                 ))}
