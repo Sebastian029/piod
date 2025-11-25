@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'api',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -126,6 +127,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 from datetime import timedelta
@@ -135,4 +137,11 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=int(os.getenv('JWT_REFRESH_DAYS', '7'))),
     'SIGNING_KEY': os.getenv('JWT_SECRET_KEY', os.getenv('SECRET_KEY', SECRET_KEY)),
     'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'MealPlan API',
+    'DESCRIPTION': 'API for managing monthly diet plans',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }

@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
 
 from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal
 from .serializers import (
@@ -24,6 +25,7 @@ from core.get_data import load_data, prepare_recipes
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(request=RegisterSerializer)
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
