@@ -16,6 +16,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
+ENVIRONMENT = os.getenv('DJANGO_ENV', 'dev')
+
 
 # Application definition
 
@@ -66,16 +68,26 @@ WSGI_APPLICATION = 'DjangoProject.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'piod',
-        'USER': 'piod',
-        'PASSWORD': 'piod',
-        'HOST': 'localhost',
-        'PORT': '5432',
+if ENVIRONMENT == 'test':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / "db.sqlite3",
+        }
     }
-}
+elif ENVIRONMENT == 'dev' or ENVIRONMENT == 'prod':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'piod',
+            'USER': 'piod',
+            'PASSWORD': 'piod',
+            'HOST': 'localhost',
+            'PORT': '5432',
+        }
+    }
+else:
+    raise Exception('Unsupported Django environment: ' + ENVIRONMENT)
 
 
 
