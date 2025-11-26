@@ -113,12 +113,16 @@ export default function Questionnaire() {
   };
 
   const handleSubmit = async () => {
-    //TODO add create_or_update in API, there is no way currently to only check if preferences exist
-    await MealPlanApi.preferences.preferencesList()
-    await MealPlanApi.preferences.preferencesPartialUpdate(preferences)
-    navigate("/mealplan", { state: { 
-      shouldRegenerate: true
-    }});
+    try {
+      //TODO add create_or_update in API, there is no way currently to only check if preferences exist
+      await MealPlanApi.preferences.preferencesList()
+      await MealPlanApi.preferences.preferencesPartialUpdate(preferences)
+      navigate("/mealplan", { state: { 
+        shouldRegenerate: true
+      }});
+    } catch (err: any) {
+      console.error("Failed to update preferences: " + err)
+    }
   };
 
   const progressPercentage = ((step + 1) / 5) * 100;

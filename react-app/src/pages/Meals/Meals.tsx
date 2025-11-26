@@ -36,17 +36,21 @@ export default function MealPlan() {
   const [loading, setLoading] = useState(true);
   const [expandedDaysNums, setExpandedDaysNums] = useState<number[]>([]);
   useEffect(() => {
-    setTimeout(async () => {
-      let plan: WeeklyMealPlan;
+    const fetchData = async () => {
       if (shouldRegenerate) {
-        plan = await generateMealPlan();
+        return await generateMealPlan();
       } else {
-        plan = await getMealPlan();
+        return await getMealPlan();
       }
-      setMealPlan(plan);
-      setLoading(false);
-      setExpandedDaysNums([1]);
-    }, 2000);
+    }
+
+    fetchData()
+      .then(plan => {
+        setMealPlan(plan);
+        setLoading(false);
+        setExpandedDaysNums([1]);
+      })
+      .catch(err => console.error("Failed to get the meal plan: " + err))
   }, []);
 
   const toggleDayExpand = (dayNum: number) => {
