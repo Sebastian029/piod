@@ -19,6 +19,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['username', 'email']
+
+
 class RecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe

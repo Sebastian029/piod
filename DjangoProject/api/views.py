@@ -10,6 +10,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal
 from .serializers import (
+    UserSerializer,
     DailyMealSerializer,
     RecipeSerializer,
     RegisterSerializer,
@@ -34,6 +35,15 @@ class RegisterView(APIView):
             {"detail": "User registered successfully"},
             status=status.HTTP_201_CREATED
         )
+
+
+class CurrentUserView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses=UserSerializer)
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)
 
 
 class ProtectedView(APIView):

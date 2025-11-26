@@ -4,4 +4,5 @@
 git_push.sh
 .gitignore
 .npmignore
-index.ts 
+axiosInstance.ts
+index.ts

@@ -14,6 +14,7 @@ urlpatterns = [
 
     path('auth/register/', RegisterView.as_view(), name='auth-register'),
     path('protected/', ProtectedView.as_view(), name='protected'),
+    path('user/', views.CurrentUserView.as_view(), name='protected'),
 
 
     path('recipes/', views.RecipeViewSet.as_view({'get': 'list'}), name='recipe-list'),
