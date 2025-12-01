@@ -20,6 +20,10 @@ class Recipe(models.Model):
     ingredients = models.JSONField(default=list, blank=True)
     is_vegetarian = models.BooleanField(default=False)
     is_vegan = models.BooleanField(default=False)
+    is_low_carb = models.BooleanField(default=False)
+    is_gluten_free = models.BooleanField(default=False)
+    is_keto = models.BooleanField(default=False)
+    is_pescetarian = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
