@@ -1,10 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import axiosInstance from "../../axiosInstance";
+import { type User, MealPlanApi } from "../../api";
 
-type User = {
-  username: string;
-  email: string;
-};
+
 type AuthContextType = {
   user: User | null;
   token: string | null;
@@ -36,11 +33,13 @@ export const AuthProvider = ({ children }: {children: React.ReactNode}) => {
 
   const login = async ({ username, password }: {username: string, password: string}) => {
     try {
-        const res = await axiosInstance.post("/api/token/", { username, password });
-        setToken(res.data.token);
-        localStorage.setItem("token", res.data.token);
-        setUser(res.data.user);
-        localStorage.setItem("user", JSON.stringify(res.data.user));
+        const tokenRes = await MealPlanApi.auth.tokenCreate({ username, password });
+        setToken(tokenRes.data.access);
+        localStorage.setItem("token", tokenRes.data.access);
+
+        const userRes = await MealPlanApi.user.userRetrieve()
+        setUser(userRes.data);
+        localStorage.setItem("user", JSON.stringify(userRes.data));
         return true;
     } catch {
       return false;
@@ -56,7 +55,7 @@ export const AuthProvider = ({ children }: {children: React.ReactNode}) => {
 
   const register = async ({username, email, password}: {username: string, email: string, password: string}) => {
     try {
-        const res = await axiosInstance.post("/api/auth/register/", { username, email, password });
+        await MealPlanApi.auth.authRegisterCreate({ username, email, password });
         return true;
     } catch {
       return false;

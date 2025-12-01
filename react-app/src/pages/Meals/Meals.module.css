@@ -153,6 +153,7 @@
 .dailyCardDay {
   font-size: 1.125rem;
   font-weight: 600;
+  color: #2d343f;
 }
 .dailyCardMeals {
   font-size: 0.875rem;
@@ -186,8 +187,8 @@
   justify-content: space-between;
   margin-bottom: 0.75rem;
 }
-.mealName { font-weight: 600; }
-.mealType { font-size: 0.75rem; color: #a1a1aa; margin-top: 0.25rem; }
+.mealName { font-weight: 600; text-transform: capitalize; }
+.mealType { font-size: 0.75rem; color: #a1a1aa; margin-top: 0.25rem; text-transform: capitalize; }
 .mealEditBtn {
   padding: 0.25rem;
   background: none;
@@ -230,6 +231,7 @@
   background: #e2e8f0;
   border-radius: 9999px;
   color: #334155;
+  text-transform: capitalize;
 }
 .dark .ingredientChip { background: #334155; color: #f1f5f9; }
 

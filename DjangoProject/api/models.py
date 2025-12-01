@@ -71,8 +71,8 @@ class UserDietPreferences(models.Model):
     def save(self, *args, **kwargs):
         self.clean()
         super().save(*args, **kwargs)
-
-    def get_target_calories(self):
+    
+    def get_target_calories(self) -> float:
         return (self.min_calories_per_day + self.max_calories_per_day) / 2
 
 
@@ -96,7 +96,7 @@ class WeeklyMealPlan(models.Model):
         return start
 
     @staticmethod
-    def get_week_end(start_date):
+    def get_week_end(start_date) -> datetime:
         return start_date + timedelta(days=6)
 
 
@@ -113,7 +113,7 @@ class DailyMeal(models.Model):
         unique_together = ['weekly_plan', 'date']
 
 
-    def get_totals(self):
+    def get_totals(self) -> dict[str, float]:
         recipes_list = self.recipes.all()
         return {
             'calories': sum(r.calories for r in recipes_list),

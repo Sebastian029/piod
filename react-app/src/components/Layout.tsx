@@ -39,6 +39,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             </Link>
             <Link
               to="/mealplan"
+              state={{ shouldRegenerate: false }}
               className={`nav-link${isActive("/meal-plan") ? " active" : ""}`}
             >
               <span className="hidden-sm">Meal Plan</span>

@@ -19,6 +19,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['username', 'email']
+
+
 class RecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
@@ -108,7 +114,7 @@ class DailyMealSerializer(serializers.ModelSerializer):
         model = DailyMeal
         fields = ['id', 'date', 'day_number', 'recipes', 'daily_totals']
 
-    def get_daily_totals(self, obj):
+    def get_daily_totals(self, obj) -> dict[str, float]:
         return obj.get_totals()
 
 
@@ -125,7 +131,7 @@ class WeeklyMealPlanSerializer(serializers.ModelSerializer):
             'score', 'days', 'weekly_totals'
         ]
 
-    def get_weekly_totals(self, obj):
+    def get_weekly_totals(self, obj) -> dict[str, float]:
         totals = {
             'calories': 0.0,
             'protein': 0.0,

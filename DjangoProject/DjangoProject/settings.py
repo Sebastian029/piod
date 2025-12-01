@@ -16,6 +16,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
+ENVIRONMENT = os.getenv('DJANGO_ENV', 'dev')
+
 
 # Application definition
 
@@ -28,9 +30,12 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'api',
+    'drf_spectacular',
+    'corsheaders'
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -63,16 +68,26 @@ WSGI_APPLICATION = 'DjangoProject.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'piod',
-        'USER': 'piod',
-        'PASSWORD': 'piod',
-        'HOST': 'localhost',
-        'PORT': '5432',
+if ENVIRONMENT == 'test':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / "db.sqlite3",
+        }
     }
-}
+elif ENVIRONMENT == 'dev' or ENVIRONMENT == 'prod':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'piod',
+            'USER': 'piod',
+            'PASSWORD': 'piod',
+            'HOST': 'localhost',
+            'PORT': '5432',
+        }
+    }
+else:
+    raise Exception('Unsupported Django environment: ' + ENVIRONMENT)
 
 
 
@@ -126,6 +141,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 from datetime import timedelta
@@ -136,3 +152,14 @@ SIMPLE_JWT = {
     'SIGNING_KEY': os.getenv('JWT_SECRET_KEY', os.getenv('SECRET_KEY', SECRET_KEY)),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'MealPlan API',
+    'DESCRIPTION': 'API for managing monthly diet plans',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # React dev server origin
+]
