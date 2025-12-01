@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta
 from django.db import transaction
 
@@ -16,7 +17,6 @@ from .serializers import (
     RegisterSerializer,
     UserDietPreferencesSerializer,
     WeeklyMealPlanSerializer,
-    WeeklyMealPlanSummarySerializer,
 )
 from core.ga_engine import evolve
 from core.ga_types import GAConfig, MacroRange, MealPlanConstraints
@@ -215,6 +215,72 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
                 {'detail': 'Preferences not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+class IngredientView(APIView):
+    permission_classes = [AllowAny]
+
+    SIMPLIFIED_INGREDIENTS = [
+        "chicken", "beef", "pork", "fish", "shrimp", "salmon", "tuna", "crab",
+        "cheese", "cheddar", "mozzarella", "parmesan", "cream cheese", "feta",
+        "onion", "garlic", "ginger", "carrot", "potato", "tomato", "pepper",
+        "bell pepper", "broccoli", "spinach", "lettuce", "cabbage", "cauliflower",
+        "zucchini", "apple", "banana", "orange", "lemon", "lime", "strawberry", "blueberry",
+        "egg", "milk", "butter", "cream", "yogurt", "buttermilk", "flour", "sugar",
+        "brown sugar", "rice", "pasta", "bread", "oats", "olive oil", "vegetable oil",
+        "coconut oil", "butter oil", "salt", "black pepper", "chili powder", "cumin",
+        "paprika", "cinnamon", "basil", "parsley", "cilantro", "oregano", "thyme",
+        "rosemary", "soy sauce", "vinegar", "honey", "mustard", "ketchup", "coconut milk",
+        "almond milk", "chicken broth", "beef broth", "baking powder", "baking soda",
+        "yeast", "cornstarch"
+    ]
+
+    ALLERGENS = [
+        "gluten", "wheat", "barley", "rye", "dairy", "milk", "lactose", "cheese", "butter", "cream", "yogurt",
+        "egg", "eggs", "peanut", "peanuts", "tree nuts", "almonds", "walnuts", "cashews", "pecans", "pistachios",
+        "soy", "soybean", "soy sauce", "fish", "salmon", "tuna", "cod", "shellfish", "shrimp", "crab", "lobster",
+        "mustard", "sesame", "sesame seeds", "celery"
+    ]
+
+    def get(self, request):
+        mode = request.query_params.get('mode', 'ingredients')
+
+        if mode == 'all':
+            ingredients = set()
+            for recipe in Recipe.objects.all():
+                for ing in recipe.ingredients or []:
+                    if isinstance(ing, str):
+                        cleaned = re.sub(r'[^a-zA-Z\s]', '', ing).strip()
+                        if cleaned:
+                            ingredients.add(cleaned)
+            unique_sorted = sorted(ingredients, key=str.lower)
+            data = {
+                'success': True,
+                'ingredients': unique_sorted,
+                'total_count': len(unique_sorted),
+                'mode': 'all'
+            }
+
+        elif mode == 'allergens':
+            unique_sorted = sorted(self.ALLERGENS, key=str.lower)
+            data = {
+                'success': True,
+                'ingredients': unique_sorted,
+                'total_count': len(unique_sorted),
+                'mode': 'allergens'
+            }
+
+        else:
+            unique_sorted = sorted(self.SIMPLIFIED_INGREDIENTS, key=str.lower)
+            data = {
+                'success': True,
+                'ingredients': unique_sorted,
+                'total_count': len(unique_sorted),
+                'mode': 'simplified'
+            }
+
+        return Response(data)
+
 
 class GeneratePlanView(APIView):
     permission_classes = [IsAuthenticated]
