@@ -36,5 +36,6 @@ urlpatterns = [
     path('plans/current-test/', views.WeeklyMealPlanViewSet.as_view({'get': 'current_test'}), name='current-week-plan-test'),
     path('plans/by-date/', views.WeeklyMealPlanViewSet.as_view({'get': 'by_date'}), name='plan-by-date'),
     path('plans/day/<str:date_str>/', views.DailyMealView.as_view(), name='daily-meal'),
+    path('plans/switch-recipe/', views.SwitchRecipeView.as_view(), name='switch-recipe'),
     path('plans/delete-all/', views.WeeklyMealPlanViewSet.as_view({'delete': 'delete_all'}), name='delete-all-plans'),
 ]

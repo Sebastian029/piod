@@ -685,3 +685,90 @@ class DailyMealView(APIView):
             return Response(serializer.data)
         except DailyMeal.DoesNotExist:
             return Response({'detail': f'Brak planu'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class SwitchRecipeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request={
+            'type': 'object',
+            'properties': {
+                'date': {'type': 'string', 'format': 'date', 'description': 'Date of the daily meal (YYYY-MM-DD)'},
+                'old_recipe_id': {'type': 'integer', 'description': 'ID of the recipe to replace'},
+                'new_recipe_id': {'type': 'integer', 'description': 'ID of the new recipe'}
+            },
+            'required': ['date', 'old_recipe_id', 'new_recipe_id']
+        },
+        responses=DailyMealSerializer
+    )
+    def post(self, request):
+        date_str = request.data.get('date')
+        old_recipe_id = request.data.get('old_recipe_id')
+        new_recipe_id = request.data.get('new_recipe_id')
+
+        if not date_str or old_recipe_id is None or new_recipe_id is None:
+            return Response(
+                {'detail': 'Missing required fields: date, old_recipe_id, new_recipe_id'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'detail': 'Invalid date format. Use YYYY-MM-DD'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            old_recipe_id = int(old_recipe_id)
+            new_recipe_id = int(new_recipe_id)
+        except (ValueError, TypeError):
+            return Response(
+                {'detail': 'old_recipe_id and new_recipe_id must be integers'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if old_recipe_id == new_recipe_id:
+            return Response(
+                {'detail': 'old_recipe_id and new_recipe_id cannot be the same'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            daily_meal = DailyMeal.objects.prefetch_related('recipes').get(
+                weekly_plan__user=request.user,
+                date=date
+            )
+        except DailyMeal.DoesNotExist:
+            return Response(
+                {'detail': 'Daily meal plan not found for this date'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if old recipe exists in the daily meal
+        if not daily_meal.recipes.filter(id=old_recipe_id).exists():
+            return Response(
+                {'detail': f'Recipe with id {old_recipe_id} not found in this daily meal'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if new recipe exists
+        try:
+            new_recipe = Recipe.objects.get(id=new_recipe_id)
+        except Recipe.DoesNotExist:
+            return Response(
+                {'detail': f'Recipe with id {new_recipe_id} does not exist'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Perform the switch
+        with transaction.atomic():
+            daily_meal.recipes.remove(old_recipe_id)
+            daily_meal.recipes.add(new_recipe_id)
+
+        # Refresh and return updated daily meal
+        daily_meal.refresh_from_db()
+        serializer = DailyMealSerializer(daily_meal)
+        return Response(serializer.data, status=status.HTTP_200_OK)
