@@ -100,7 +100,11 @@ class UploadRecipesView(APIView):
                         ingredients=recipe_data['ingredients'],
                         steps=recipe_data.get('steps', []),
                         is_vegetarian=recipe_data['is_vegetarian'],
-                        is_vegan=recipe_data['is_vegan']
+                        is_vegan=recipe_data['is_vegan'],
+                        is_low_carb=recipe_data['is_low_carb'],
+                        is_gluten_free=recipe_data['is_gluten_free'],
+                        is_keto=recipe_data['is_keto'],
+                        is_pescetarian=recipe_data['is_pescetarian']
                     )
 
                     created_count += 1
@@ -215,6 +219,93 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
                 {'detail': 'Preferences not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+class DietTypesView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        diets = [
+            'vegan',
+            'vegetarian',
+            'low_carb',
+            'gluten_free',
+            'keto',
+            'pescetarian'
+        ]
+
+        return Response({
+            'success': True,
+            'diets': diets,
+            'total_count': len(diets)
+        })
+
+
+class DietExcludedIngredientsView(APIView):
+    permission_classes = [AllowAny]
+
+    DIET_EXCLUDES = {
+        'vegan': [
+            'chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'meat', 'bacon',
+            'ham', 'sausage', 'steak', 'veal', 'venison', 'bison', 'fish', 'salmon',
+            'tuna', 'shrimp', 'prawn', 'crab', 'lobster', 'seafood', 'anchovy',
+            'sardine', 'shellfish', 'oyster', 'mussel', 'milk', 'cheese', 'butter',
+            'cream', 'yogurt', 'yoghurt', 'whey', 'casein', 'lactose', 'ghee',
+            'buttermilk', 'sour cream', 'egg', 'eggs', 'mayo', 'mayonnaise',
+            'honey', 'gelatin', 'gelatine'
+        ],
+        'vegetarian': [
+            'chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'meat', 'bacon',
+            'ham', 'sausage', 'steak', 'veal', 'venison', 'bison', 'pepperoni',
+            'salami', 'prosciutto', 'fish', 'salmon', 'tuna', 'shrimp', 'prawn',
+            'crab', 'lobster', 'seafood', 'anchovy', 'sardine', 'shellfish',
+            'oyster', 'mussel', 'cod', 'haddock', 'tilapia', 'trout', 'gelatin',
+            'gelatine', 'rennet'
+        ],
+        'low_carb': [
+            'sugar', 'flour', 'rice', 'pasta', 'bread', 'oats', 'potato', 'corn'
+        ],
+        'gluten_free': [
+            'flour', 'wheat', 'barley', 'rye', 'bread', 'pasta', 'cereal'
+        ],
+        'keto': [
+            'sugar', 'flour', 'rice', 'pasta', 'bread', 'oats', 'potato', 'banana',
+            'honey', 'corn', 'fruit'
+        ],
+        'pescetarian': [
+            'chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'meat', 'bacon',
+            'ham', 'sausage', 'steak'
+        ]
+    }
+
+    def get(self, request):
+        diet_name = request.query_params.get('diet', '').lower().strip()
+
+        if diet_name not in self.DIET_EXCLUDES:
+            return Response({
+                'success': False,
+                'error': f'Nieznana dieta: {diet_name}',
+                'available_diets': list(self.DIET_EXCLUDES.keys())
+            }, status=400)
+
+        exclude_keywords = self.DIET_EXCLUDES[diet_name]
+
+        excluded_count = 0
+        for recipe in Recipe.objects.all():
+            ingredients_text = ' '.join(recipe.ingredients or []).lower()
+            tags_text = (recipe.tags or '').lower()
+            name_text = (recipe.name or '').lower()
+            combined_text = f"{ingredients_text} {tags_text} {name_text}"
+
+            if any(keyword in combined_text for keyword in exclude_keywords):
+                excluded_count += 1
+
+        return Response({
+            'success': True,
+            'diet': diet_name,
+            'exclude_keywords': exclude_keywords,
+            'excluded_recipes_count': excluded_count
+        })
 
 
 class IngredientView(APIView):

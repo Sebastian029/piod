@@ -127,37 +127,51 @@ def is_vegetarian_recipe(row) -> bool:
 def is_low_carb_recipe(row) -> bool:
     low_carb_excludes = ['sugar', 'flour', 'rice', 'pasta', 'bread', 'oats', 'potato', 'corn']
     ingredients_str = ' '.join(row['ingredients_list']).lower()
+    tags_str = str(row['tags']).lower()
+    name_str = str(row['name']).lower()
+    combined_text = f"{ingredients_str} {tags_str} {name_str}"
     for excl in low_carb_excludes:
-        if excl in ingredients_str:
+        if excl in combined_text:
             return False
     return True
+
 
 def is_gluten_free_recipe(row) -> bool:
     gluten_excludes = ['flour', 'wheat', 'barley', 'rye', 'bread', 'pasta', 'cereal']
     ingredients_str = ' '.join(row['ingredients_list']).lower()
+    tags_str = str(row['tags']).lower()
+    name_str = str(row['name']).lower()
+    combined_text = f"{ingredients_str} {tags_str} {name_str}"
     for excl in gluten_excludes:
-        if excl in ingredients_str:
+        if excl in combined_text:
             return False
     return True
+
 
 def is_keto_recipe(row) -> bool:
     keto_excludes = ['sugar', 'flour', 'rice', 'pasta', 'bread', 'oats', 'potato',
                      'banana', 'honey', 'corn', 'fruit']
     ingredients_str = ' '.join(row['ingredients_list']).lower()
+    tags_str = str(row['tags']).lower()
+    name_str = str(row['name']).lower()
+    combined_text = f"{ingredients_str} {tags_str} {name_str}"
     for excl in keto_excludes:
-        if excl in ingredients_str:
+        if excl in combined_text:
             return False
     return True
+
 
 def is_pescetarian_recipe(row) -> bool:
-    # Pobieramy składniki, w niskim uproszczeniu: wyklucz mięsa lądowe (kurczak, wołowina, wieprzowina itd.)
-    pescetarian_excludes = ['chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'meat', 'bacon', 'ham', 'sausage', 'steak']
+    pescetarian_excludes = ['chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'meat',
+                            'bacon', 'ham', 'sausage', 'steak']
     ingredients_str = ' '.join(row['ingredients_list']).lower()
+    tags_str = str(row['tags']).lower()
+    name_str = str(row['name']).lower()
+    combined_text = f"{ingredients_str} {tags_str} {name_str}"
     for excl in pescetarian_excludes:
-        if excl in ingredients_str:
+        if excl in combined_text:
             return False
     return True
-
 
 
 def classify_meal_type(row) -> str:
