@@ -234,7 +234,8 @@ class DietTypesView(APIView):
             {'id': 'low_carb', 'name': 'Low Carb'},
             {'id': 'gluten_free', 'name': 'Gluten Free'},
             {'id': 'keto', 'name': 'Keto'},
-            {'id': 'pescetarian', 'name': 'Pescetarian'}
+            {'id': 'pescetarian', 'name': 'Pescetarian'},
+            {'id': 'standard', 'name': 'Normal'},
         ]
 
         return Response({
@@ -400,6 +401,10 @@ class GeneratePlanView(APIView):
                 'n_ingredients': int(r.n_ingredients),
                 'is_vegetarian': bool(r.is_vegetarian),
                 'is_vegan': bool(r.is_vegan),
+                'is_low_carb': bool(r.is_low_carb),
+                'is_gluten_free': bool(r.is_gluten_free),
+                'is_keto': bool(r.is_keto),
+                'is_pescetarian': bool(r.is_pescetarian),
             })
 
         if not recipes:
@@ -875,6 +880,10 @@ class AutoSwapRecipeView(APIView):
                 'tags': recipe.tags or '',
                 'is_vegetarian': bool(recipe.is_vegetarian),
                 'is_vegan': bool(recipe.is_vegan),
+                'is_low_carb': bool(recipe.is_low_carb),
+                'is_gluten_free': bool(recipe.is_gluten_free),
+                'is_keto': bool(recipe.is_keto),
+                'is_pescetarian': bool(recipe.is_pescetarian),
             }
 
         allowed_recipes = []

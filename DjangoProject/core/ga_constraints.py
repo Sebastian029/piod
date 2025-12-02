@@ -9,7 +9,16 @@ def recipe_matches_diet(recipe: Dict[str, object], diet_type: str) -> bool:
         return bool(recipe.get('is_vegetarian', False) or recipe.get('is_vegan', False))
     if diet_type == 'vegan':
         return bool(recipe.get('is_vegan', False))
+    if diet_type == 'low_carb':
+        return bool(recipe.get('is_low_carb', False))
+    if diet_type == 'gluten_free':
+        return bool(recipe.get('is_gluten_free', False))
+    if diet_type == 'keto':
+        return bool(recipe.get('is_keto', False))
+    if diet_type == 'pescetarian':
+        return bool(recipe.get('is_pescetarian', False))
     return True
+
 
 
 def recipe_contains_any(recipe: Dict[str, object], banned_terms: List[str]) -> bool:
