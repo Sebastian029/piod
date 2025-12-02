@@ -225,19 +225,19 @@ class DietTypesView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        diets = [
-            'vegan',
-            'vegetarian',
-            'low_carb',
-            'gluten_free',
-            'keto',
-            'pescetarian'
+        diet_data = [
+            {'id': 'vegan', 'name': 'Vegan'},
+            {'id': 'vegetarian', 'name': 'Vegetarian'},
+            {'id': 'low_carb', 'name': 'Low Carb'},
+            {'id': 'gluten_free', 'name': 'Gluten Free'},
+            {'id': 'keto', 'name': 'Keto'},
+            {'id': 'pescetarian', 'name': 'Pescetarian'}
         ]
 
         return Response({
             'success': True,
-            'diets': diets,
-            'total_count': len(diets)
+            'diets': diet_data,
+            'total_count': len(diet_data)
         })
 
 
