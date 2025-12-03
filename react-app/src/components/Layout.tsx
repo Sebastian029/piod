@@ -1,11 +1,12 @@
 import React, {useState} from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./Auth/AuthContext";
 import { UtensilsCrossed } from "lucide-react";
 import "./Layout.css";
 import { AuthModal } from "./Modal/AuthModal";
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
+  const navigate = useNavigate();
   const location = useLocation();
   const { user, login, logout } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -13,6 +14,25 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
   const isActive = (path: string) => {
     return location.pathname === path;
   };
+
+  const openLogin = () => setShowLoginModal(true);
+
+  const goToQuestionnaire = () => {
+    if (!user) {
+      openLogin();
+      return;
+    }
+    navigate("/questionnaire");
+  };
+
+  const goToMealPlan = () => {
+    if (!user) {
+      openLogin();
+      return;
+    }
+    navigate("/mealplan", { state: { shouldRegenerate: false } });
+  };
+
 
   return (
     <div className="layout-root">
@@ -30,21 +50,26 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             >
               Home
             </Link>
-            <Link
-              to="/questionnaire"
-              className={`nav-link${isActive("/questionnaire") ? " active" : ""}`}
+            <button
+              type="button"
+              onClick={goToQuestionnaire}
+              className={`nav-link ${
+                isActive("/questionnaire") ? "active" : ""
+              }`}
             >
               <span className="hidden-sm">Questionnaire</span>
               <span className="visible-sm">Survey</span>
-            </Link>
-            <Link
-              to="/mealplan"
-              state={{ shouldRegenerate: false }}
-              className={`nav-link${isActive("/meal-plan") ? " active" : ""}`}
+            </button>
+            <button
+              type="button"
+              onClick={goToMealPlan}
+              className={`nav-link ${
+                isActive("/mealplan") ? "active" : ""
+              }`}
             >
               <span className="hidden-sm">Meal Plan</span>
               <span className="visible-sm">Plan</span>
-            </Link>
+            </button>
             {/* <Link
               to="/shopping-list"
               className={`nav-link${isActive("/shopping-list") ? " active" : ""}`}
@@ -55,7 +80,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             {!user ? (
               <button
                 className="nav-link"
-                onClick={() => setShowLoginModal(true)}
+                onClick={openLogin}
               >
                 Login
               </button>

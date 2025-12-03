@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
-
 import { type PatchedUserDietPreferences, MealPlanApi, DietTypeEnum } from "../../api";
 import { Layout } from "../../components/Layout";
 import styles from "./Questionaire.module.css"; 
+import { Slider } from 'antd';
 
 
 //TODO retrieve ALL this stuff from API
@@ -124,6 +124,7 @@ export default function Questionnaire() {
       console.error("Failed to update preferences: " + err)
     }
   };
+  
 
   const progressPercentage = ((step + 1) / 5) * 100;
 
@@ -212,10 +213,10 @@ export default function Questionnaire() {
                   from {preferences.min_calories_per_day} to {preferences.max_calories_per_day}
                 </span>
               </div>
-              <input
+              {/* <input
                 type="range"
                 min="1200"
-                max="4000"
+                max="10000"
                 step="100"
                 value={preferences.min_calories_per_day}
                 onChange={(e) =>
@@ -239,6 +240,22 @@ export default function Questionnaire() {
                   }))
                 }
                 className={styles.sliderRange}
+              /> */}
+              <Slider 
+                className={styles.slider}
+                range={{ draggableTrack: true }} 
+                max={4000} 
+                min={1200} 
+                step={100} 
+                value={[preferences.min_calories_per_day ?? 1500 , preferences.max_calories_per_day ?? 3000]} 
+                onChange={(value: number[]) => {
+                  const [min, max] = value as number[];
+                  setPreferences((prev) => ({
+                    ...prev,
+                    min_calories_per_day: min,
+                    max_calories_per_day: max,
+                  }));
+                }}
               />
               <div className={styles.sliderMinMaxRow}>
                 <span>1200</span>
