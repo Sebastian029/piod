@@ -1,49 +1,53 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 import { type PatchedUserDietPreferences, MealPlanApi, DietTypeEnum } from "../../api";
 import { Layout } from "../../components/Layout";
 import styles from "./Questionaire.module.css"; 
-import { Slider } from 'antd';
+import axiosInstance from "../../api/axiosInstance";
+import { Slider, Cascader} from 'antd';
 
 
 //TODO retrieve ALL this stuff from API
 
-const DIET_TYPES: string[] = [
-  DietTypeEnum.Standard,
-  DietTypeEnum.Vegetarian,
-  DietTypeEnum.Vegan,
-]
+// const DIET_TYPES: string[] = [
+//   DietTypeEnum.Standard,
+//   DietTypeEnum.Vegetarian,
+//   DietTypeEnum.Vegan,
+// ]
 
 const MEAL_OPTIONS = [
   "breakfast", 
   "lunch", 
-  "dinner", 
-  "snack"
+  "dinner"
 ];
 
-const ALLERGY_OPTIONS = [
-  "nuts",
-  "dairy",
-  "shellfish",
-  "eggs",
-  "soy",
-  "wheat",
-  "sesame",
-];
+// const ALLERGY_OPTIONS = [
+//   "nuts",
+//   "dairy",
+//   "shellfish",
+//   "eggs",
+//   "soy",
+//   "wheat",
+//   "sesame",
+// ];
 
-const DISLIKED_INGREDIENTS = [
-  "mushrooms",
-  "olives",
-  "cilantro",
-  "spicy",
-  "liver",
-  "seafood",
-  "beans",
-];
+// const DISLIKED_INGREDIENTS = [
+//   "mushrooms",
+//   "olives",
+//   "cilantro",
+//   "spicy",
+//   "liver",
+//   "seafood",
+//   "beans",
+// ];
+
 
 export default function Questionnaire() {
   const navigate = useNavigate();
+  const [dietTypes, setDietTypes] = useState<{id: string, name: string}[]>([]);
+  const [allergens, setAllergens] = useState([""]);
+  const [ingredients, setIngredients] = useState([""]);
   
   const [step, setStep] = useState(0);
   const [preferences, setPreferences] = useState<PatchedUserDietPreferences>({
@@ -63,6 +67,46 @@ export default function Questionnaire() {
   const [preferredMeals, setPreferredMeals] = useState<string[]>(["breakfast", "lunch", "dinner"]);
   //TODO remove when preferred_meals is available
   const [vegetarianDays, setVegetarianDays] = useState<number>(0);
+
+  const [allergyCascaderValue, setAllergyCascaderValue] = useState<string[][]>([]);
+  const [ingredientCascaderValue, setIngredientCascaderValue] = useState<string[][]>([]);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try{
+        const dietResponse = await axiosInstance.get('api/diets/');
+        setDietTypes(dietResponse.data.diets);
+        const ingredientsResponse = await axiosInstance.get('api/ingredients/?mode=ingredients');
+        setIngredients(ingredientsResponse.data.ingredients);
+        const allergensResponse = await axiosInstance.get('api/ingredients/?mode=allergens');
+        setAllergens(allergensResponse.data.ingredients);
+        console.log(dietResponse.data);
+        console.log(ingredientsResponse);
+        console.log(allergensResponse);
+      }
+      catch (error) {
+        console.error("Failed to load options:", error);
+        setDietTypes([
+          { id: 'standard', name: 'Normal' },
+          { id: 'vegetarian', name: 'Vegetarian' },
+          { id: 'vegan', name: 'Vegan' }
+        ]);
+        setAllergens(["nuts", "dairy", "shellfish", "eggs", "soy", "wheat", "sesame"]);
+        setIngredients(["mushrooms", "olives", "cilantro", "spicy", "liver", "seafood", "beans"]);
+      }
+    };
+
+    fetchOptions();
+
+  },[])
+
+  useEffect(() => {
+    setPreferences(prev => ({
+      ...prev,
+      allergens: allergyCascaderValue,
+      excluded_ingredients: ingredientCascaderValue
+    }));
+  }, [allergyCascaderValue, ingredientCascaderValue]);
 
   const toggleMultiSelect = (
     field: keyof Pick<
@@ -124,7 +168,9 @@ export default function Questionnaire() {
       console.error("Failed to update preferences: " + err)
     }
   };
-  
+
+  const allergyOptions = allergens.map(item => ({ value: item, label: item.charAt(0).toUpperCase() + item.slice(1) }));
+  const ingredientOptions = ingredients.map(item => ({ value: item, label: item.charAt(0).toUpperCase() + item.slice(1) }));
 
   const progressPercentage = ((step + 1) / 5) * 100;
 
@@ -153,17 +199,17 @@ export default function Questionnaire() {
             </p>
           </div>
           <div className={styles.gridList}>
-            {DIET_TYPES.map((diet) => (
+            {dietTypes.map((diet) => (
               <button
-                key={diet}
-                onClick={() => setPreferences((prev) => ({ ...prev, diet_type: diet as DietTypeEnum }))}
+                key={diet.id}
+                onClick={() => setPreferences((prev) => ({ ...prev, diet_type: diet.id as DietTypeEnum }))}
                 className={`${styles.buttonOption} ${
-                  preferences.diet_type == diet ? styles.buttonActive : ""
+                  preferences.diet_type == diet.id ? styles.buttonActive : ""
                 }`}
               >
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                  <span style={{'textTransform': "capitalize"}}>{diet}</span>
-                  {preferences.diet_type == diet && <Check className="icon" />}
+                  <span style={{'textTransform': "capitalize"}}>{diet.name}</span>
+                  {preferences.diet_type == diet.id && <Check className="icon" />}
                 </div>
               </button>
             ))}
@@ -342,8 +388,8 @@ export default function Questionnaire() {
           <div className={styles.spaceVertical}>
             <div>
               <h3 className={styles.subTitle}>Allergies</h3>
-              <div className={styles.gridAllergies}>
-                {ALLERGY_OPTIONS.map((allergy) => (
+              {/* <div className={styles.gridAllergies}>
+                {allergens.map((allergy) => (
                   <button
                     key={allergy}
                     onClick={() => toggleMultiSelect("allergens", allergy)}
@@ -357,12 +403,23 @@ export default function Questionnaire() {
                     </div>
                   </button>
                 ))}
-              </div>
+              </div> */}
+              <Cascader
+                style={{ width: '100%', maxWidth: '400px' }}
+                options={allergyOptions}
+                value={allergyCascaderValue}
+                onChange={setAllergyCascaderValue}
+                multiple
+                maxTagCount="responsive"
+                placeholder="Select allergies..."
+                showSearch={{onSearch: (value) => console.log(value) }}
+                className={styles.cascader}
+              />
             </div>
             <div>
               <h3 className={styles.subTitle}>Disliked Ingredients</h3>
-              <div className={styles.gridDisliked}>
-                {DISLIKED_INGREDIENTS.map((ingredient) => (
+              {/* <div className={styles.gridDisliked}>
+                {ingredients.map((ingredient) => (
                   <button
                     key={ingredient}
                     onClick={() =>
@@ -378,9 +435,38 @@ export default function Questionnaire() {
                     </div>
                   </button>
                 ))}
-              </div>
+              </div> */} 
+              <Cascader
+                style={{ width: '100%', maxWidth: '400px' }}
+                options={ingredientOptions}
+                value={ingredientCascaderValue}
+                onChange={setIngredientCascaderValue}
+                multiple
+                maxTagCount="responsive"
+                placeholder="Select disliked ingredients..."
+                showSearch={{onSearch: (value) => console.log(value) }}
+                className={styles.cascader}
+              />
+               
             </div>
           </div>
+          {/* {(allergyCascaderValue.length > 0 || ingredientCascaderValue.length > 0) && (
+              <div style={{ marginTop: 24 }}>
+                <h4 style={{ marginBottom: 12, color: '#666' }}>Wybrane:</h4>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {allergyCascaderValue.map(item => (
+                    <Tag key={`allergy-${item}`} color="red" size="small">
+                      {item}
+                    </Tag>
+                  ))}
+                  {ingredientCascaderValue.map(item => (
+                    <Tag key={`ing-${item}`} color="orange" size="small">
+                      {item}
+                    </Tag>
+                  ))}
+                </div>
+              </div>
+            )} */}
         </div>
       )}
 

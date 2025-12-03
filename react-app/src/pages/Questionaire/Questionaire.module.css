@@ -195,6 +195,9 @@
 }
 
 /* Allergies / dislikes */
+.cascader{
+  width: 5rem;
+}
 .spaceVertical {
   display: flex;
   flex-direction: column;
