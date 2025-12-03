@@ -31,10 +31,15 @@ class Recipe(models.Model):
 
 class UserDietPreferences(models.Model):
     DIET_TYPE_CHOICES = [
-        ('standard', 'Standardowa'),
-        ('vegetarian', 'Wegetariańska'),
-        ('vegan', 'Wegańska'),
+        ('standard', 'Normal'),
+        ('vegetarian', 'Vegetarian'),
+        ('vegan', 'Vegan'),
+        ('low_carb', 'Gluten Free'),
+        ('keto', 'Keto'),
+        ('pescetarian', 'Pescetarian'),
+        ('vegan', 'Vegan'),
     ]
+
 
     user = models.OneToOneField(
         User,
