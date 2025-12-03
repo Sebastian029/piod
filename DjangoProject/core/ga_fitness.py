@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Dict, List, Tuple
 from .ga_types import MealPlan, MealPlanConstraints, Recipe
+from .tag_analysis import calculate_tag_similarity
 
 
 def _day_totals(day_recipes: List[Recipe]) -> Dict[str, float]:
@@ -113,6 +114,20 @@ def compute_fitness(
                 diet_bonus += 0.5
     score += diet_bonus
     breakdown['diet_bonus'] = diet_bonus
+
+    # Tag similarity bonus based on user's rated recipes
+    tag_bonus = 0.0
+    if constraints.preferred_tags:
+        for d in range(constraints.days):
+            for idx in plan.plan[d]:
+                r = recipes[idx]
+                recipe_tags = str(r.get('tags', '') or '')
+                similarity = calculate_tag_similarity(recipe_tags, constraints.preferred_tags)
+                # Scale the similarity score to appropriate bonus points
+                # Similarity can be quite high, so we'll scale it down
+                tag_bonus += similarity * 5.0  # Adjust multiplier as needed
+    score += tag_bonus
+    breakdown['tag_similarity'] = tag_bonus
 
     return score, breakdown
 

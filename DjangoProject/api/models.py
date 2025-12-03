@@ -125,3 +125,21 @@ class DailyMeal(models.Model):
             'carbs': sum(r.carbs for r in recipes_list),
             'fat': sum(r.fat for r in recipes_list),
         }
+
+
+class UserRecipeRating(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recipe_ratings')
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='user_ratings')
+    rating = models.IntegerField(
+        default=3,
+        validators=[MinValueValidator(1), MaxValueValidator(6)]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ['user', 'recipe']
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.recipe.name}: {self.rating}"

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional, Tuple
 
 
@@ -24,6 +24,7 @@ class MealPlanConstraints:
     allergens: List[str]
     diet_type: DietType
     diversity_window_days: int = 3
+    preferred_tags: Optional[Dict[str, float]] = None  # Tag preferences from user ratings
 
 
 @dataclass

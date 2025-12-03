@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal
+from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal, UserRecipeRating
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -27,14 +27,27 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RecipeSerializer(serializers.ModelSerializer):
+    user_rating = serializers.SerializerMethodField()
+
     class Meta:
         model = Recipe
         fields = [
             'id', 'name', 'description', 'meal_type', 'protein', 'carbs',
             'fat', 'calories', 'tags', "steps", 'n_steps', 'n_ingredients',
             'ingredients', 'is_vegetarian', 'is_vegan',
-            'is_low_carb', 'is_gluten_free', 'is_keto', 'is_pescetarian'
+            'is_low_carb', 'is_gluten_free', 'is_keto', 'is_pescetarian',
+            'user_rating'
         ]
+
+    def get_user_rating(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            try:
+                rating = UserRecipeRating.objects.get(user=request.user, recipe=obj)
+                return rating.rating
+            except UserRecipeRating.DoesNotExist:
+                return 3  # Default rating
+        return None
 
 
 
@@ -157,3 +170,26 @@ class WeeklyMealPlanSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = WeeklyMealPlan
         fields = ['start_date', 'end_date', 'score']
+
+
+class UserRecipeRatingSerializer(serializers.ModelSerializer):
+    recipe_id = serializers.IntegerField()
+
+    class Meta:
+        model = UserRecipeRating
+        fields = ['id', 'recipe_id', 'rating', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def create(self, validated_data):
+        # Pobierz użytkownika z kontekstu
+        user = self.context['request'].user
+
+        # Zaktualizuj lub utwórz ocenę (zapobiega duplikatom)
+        rating, created = UserRecipeRating.objects.update_or_create(
+            user=user,
+            recipe_id=validated_data['recipe_id'],
+            defaults={'rating': validated_data['rating']}
+        )
+        return rating
+
+
