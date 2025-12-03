@@ -94,12 +94,23 @@ def compute_fitness(
     for d in range(constraints.days):
         for idx in plan.plan[d]:
             r = recipes[idx]
+
             if constraints.diet_type == 'vegetarian' and (r.get('is_vegetarian') or r.get('is_vegan')):
                 diet_bonus += 2.0
             elif constraints.diet_type == 'vegan' and r.get('is_vegan'):
                 diet_bonus += 3.0
+            elif constraints.diet_type == 'low_carb' and r.get('is_low_carb'):
+                diet_bonus += 2.5
+            elif constraints.diet_type == 'gluten_free' and r.get('is_gluten_free'):
+                diet_bonus += 2.0
+            elif constraints.diet_type == 'keto' and r.get('is_keto'):
+                diet_bonus += 3.0
+            elif constraints.diet_type == 'pescetarian' and r.get('is_pescetarian'):
+                diet_bonus += 2.0
             elif constraints.diet_type == 'standard':
                 diet_bonus += 1.0
+            else:
+                diet_bonus += 0.5
     score += diet_bonus
     breakdown['diet_bonus'] = diet_bonus
 

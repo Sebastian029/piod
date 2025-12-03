@@ -1,4 +1,7 @@
+import re
 from datetime import datetime, timedelta
+import random as rand
+
 from django.db import transaction
 
 from rest_framework import status, viewsets
@@ -16,11 +19,11 @@ from .serializers import (
     RegisterSerializer,
     UserDietPreferencesSerializer,
     WeeklyMealPlanSerializer,
-    WeeklyMealPlanSummarySerializer,
 )
 from core.ga_engine import evolve
 from core.ga_types import GAConfig, MacroRange, MealPlanConstraints
 from core.get_data import load_data, prepare_recipes
+from core.ga_constraints import recipe_allowed, recipe_matches_diet, recipe_contains_any
 
 
 class RegisterView(APIView):
@@ -100,7 +103,11 @@ class UploadRecipesView(APIView):
                         ingredients=recipe_data['ingredients'],
                         steps=recipe_data.get('steps', []),
                         is_vegetarian=recipe_data['is_vegetarian'],
-                        is_vegan=recipe_data['is_vegan']
+                        is_vegan=recipe_data['is_vegan'],
+                        is_low_carb=recipe_data['is_low_carb'],
+                        is_gluten_free=recipe_data['is_gluten_free'],
+                        is_keto=recipe_data['is_keto'],
+                        is_pescetarian=recipe_data['is_pescetarian']
                     )
 
                     created_count += 1
@@ -216,6 +223,160 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+
+class DietTypesView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        diet_data = [
+            {'id': 'vegan', 'name': 'Vegan'},
+            {'id': 'vegetarian', 'name': 'Vegetarian'},
+            {'id': 'low_carb', 'name': 'Low Carb'},
+            {'id': 'gluten_free', 'name': 'Gluten Free'},
+            {'id': 'keto', 'name': 'Keto'},
+            {'id': 'pescetarian', 'name': 'Pescetarian'},
+            {'id': 'standard', 'name': 'Normal'},
+        ]
+
+        return Response({
+            'success': True,
+            'diets': diet_data,
+            'total_count': len(diet_data)
+        })
+
+
+class DietExcludedIngredientsView(APIView):
+    permission_classes = [AllowAny]
+
+    DIET_EXCLUDES = {
+        'vegan': [
+            'chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'meat', 'bacon',
+            'ham', 'sausage', 'steak', 'veal', 'venison', 'bison', 'fish', 'salmon',
+            'tuna', 'shrimp', 'prawn', 'crab', 'lobster', 'seafood', 'anchovy',
+            'sardine', 'shellfish', 'oyster', 'mussel', 'milk', 'cheese', 'butter',
+            'cream', 'yogurt', 'yoghurt', 'whey', 'casein', 'lactose', 'ghee',
+            'buttermilk', 'sour cream', 'egg', 'eggs', 'mayo', 'mayonnaise',
+            'honey', 'gelatin', 'gelatine'
+        ],
+        'vegetarian': [
+            'chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'meat', 'bacon',
+            'ham', 'sausage', 'steak', 'veal', 'venison', 'bison', 'pepperoni',
+            'salami', 'prosciutto', 'fish', 'salmon', 'tuna', 'shrimp', 'prawn',
+            'crab', 'lobster', 'seafood', 'anchovy', 'sardine', 'shellfish',
+            'oyster', 'mussel', 'cod', 'haddock', 'tilapia', 'trout', 'gelatin',
+            'gelatine', 'rennet'
+        ],
+        'low_carb': [
+            'sugar', 'flour', 'rice', 'pasta', 'bread', 'oats', 'potato', 'corn'
+        ],
+        'gluten_free': [
+            'flour', 'wheat', 'barley', 'rye', 'bread', 'pasta', 'cereal'
+        ],
+        'keto': [
+            'sugar', 'flour', 'rice', 'pasta', 'bread', 'oats', 'potato', 'banana',
+            'honey', 'corn', 'fruit'
+        ],
+        'pescetarian': [
+            'chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'meat', 'bacon',
+            'ham', 'sausage', 'steak'
+        ]
+    }
+
+    def get(self, request):
+        diet_name = request.query_params.get('diet', '').lower().strip()
+
+        if diet_name not in self.DIET_EXCLUDES:
+            return Response({
+                'success': False,
+                'error': f'Nieznana dieta: {diet_name}',
+                'available_diets': list(self.DIET_EXCLUDES.keys())
+            }, status=400)
+
+        exclude_keywords = self.DIET_EXCLUDES[diet_name]
+
+        excluded_count = 0
+        for recipe in Recipe.objects.all():
+            ingredients_text = ' '.join(recipe.ingredients or []).lower()
+            tags_text = (recipe.tags or '').lower()
+            name_text = (recipe.name or '').lower()
+            combined_text = f"{ingredients_text} {tags_text} {name_text}"
+
+            if any(keyword in combined_text for keyword in exclude_keywords):
+                excluded_count += 1
+
+        return Response({
+            'success': True,
+            'diet': diet_name,
+            'exclude_keywords': exclude_keywords,
+            'excluded_recipes_count': excluded_count
+        })
+
+
+class IngredientView(APIView):
+    permission_classes = [AllowAny]
+
+    SIMPLIFIED_INGREDIENTS = [
+        "chicken", "beef", "pork", "fish", "shrimp", "salmon", "tuna", "crab",
+        "cheese", "cheddar", "mozzarella", "parmesan", "cream cheese", "feta",
+        "onion", "garlic", "ginger", "carrot", "potato", "tomato", "pepper",
+        "bell pepper", "broccoli", "spinach", "lettuce", "cabbage", "cauliflower",
+        "zucchini", "apple", "banana", "orange", "lemon", "lime", "strawberry", "blueberry",
+        "egg", "milk", "butter", "cream", "yogurt", "buttermilk", "flour", "sugar",
+        "brown sugar", "rice", "pasta", "bread", "oats", "olive oil", "vegetable oil",
+        "coconut oil", "butter oil", "salt", "black pepper", "chili powder", "cumin",
+        "paprika", "cinnamon", "basil", "parsley", "cilantro", "oregano", "thyme",
+        "rosemary", "soy sauce", "vinegar", "honey", "mustard", "ketchup", "coconut milk",
+        "almond milk", "chicken broth", "beef broth", "baking powder", "baking soda",
+        "yeast", "cornstarch"
+    ]
+
+    ALLERGENS = [
+        "gluten", "wheat", "barley", "rye", "dairy", "milk", "lactose", "cheese", "butter", "cream", "yogurt",
+        "egg", "eggs", "peanut", "peanuts", "tree nuts", "almonds", "walnuts", "cashews", "pecans", "pistachios",
+        "soy", "soybean", "soy sauce", "fish", "salmon", "tuna", "cod", "shellfish", "shrimp", "crab", "lobster",
+        "mustard", "sesame", "sesame seeds", "celery"
+    ]
+
+    def get(self, request):
+        mode = request.query_params.get('mode', 'ingredients')
+
+        if mode == 'all':
+            ingredients = set()
+            for recipe in Recipe.objects.all():
+                for ing in recipe.ingredients or []:
+                    if isinstance(ing, str):
+                        cleaned = re.sub(r'[^a-zA-Z\s]', '', ing).strip()
+                        if cleaned:
+                            ingredients.add(cleaned)
+            unique_sorted = sorted(ingredients, key=str.lower)
+            data = {
+                'success': True,
+                'ingredients': unique_sorted,
+                'total_count': len(unique_sorted),
+                'mode': 'all'
+            }
+
+        elif mode == 'allergens':
+            unique_sorted = sorted(self.ALLERGENS, key=str.lower)
+            data = {
+                'success': True,
+                'ingredients': unique_sorted,
+                'total_count': len(unique_sorted),
+                'mode': 'allergens'
+            }
+
+        else:
+            unique_sorted = sorted(self.SIMPLIFIED_INGREDIENTS, key=str.lower)
+            data = {
+                'success': True,
+                'ingredients': unique_sorted,
+                'total_count': len(unique_sorted),
+                'mode': 'simplified'
+            }
+
+        return Response(data)
+
+
 class GeneratePlanView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -240,6 +401,10 @@ class GeneratePlanView(APIView):
                 'n_ingredients': int(r.n_ingredients),
                 'is_vegetarian': bool(r.is_vegetarian),
                 'is_vegan': bool(r.is_vegan),
+                'is_low_carb': bool(r.is_low_carb),
+                'is_gluten_free': bool(r.is_gluten_free),
+                'is_keto': bool(r.is_keto),
+                'is_pescetarian': bool(r.is_pescetarian),
             })
 
         if not recipes:
@@ -528,3 +693,297 @@ class DailyMealView(APIView):
             return Response(serializer.data)
         except DailyMeal.DoesNotExist:
             return Response({'detail': f'Brak planu'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class SwitchRecipeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request={
+            'type': 'object',
+            'properties': {
+                'date': {'type': 'string', 'format': 'date', 'description': 'Date of the daily meal (YYYY-MM-DD)'},
+                'old_recipe_id': {'type': 'integer', 'description': 'ID of the recipe to replace'},
+                'new_recipe_id': {'type': 'integer', 'description': 'ID of the new recipe'}
+            },
+            'required': ['date', 'old_recipe_id', 'new_recipe_id']
+        },
+        responses=DailyMealSerializer
+    )
+    def post(self, request):
+        date_str = request.data.get('date')
+        old_recipe_id = request.data.get('old_recipe_id')
+        new_recipe_id = request.data.get('new_recipe_id')
+
+        if not date_str or old_recipe_id is None or new_recipe_id is None:
+            return Response(
+                {'detail': 'Missing required fields: date, old_recipe_id, new_recipe_id'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'detail': 'Invalid date format. Use YYYY-MM-DD'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            old_recipe_id = int(old_recipe_id)
+            new_recipe_id = int(new_recipe_id)
+        except (ValueError, TypeError):
+            return Response(
+                {'detail': 'old_recipe_id and new_recipe_id must be integers'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if old_recipe_id == new_recipe_id:
+            return Response(
+                {'detail': 'old_recipe_id and new_recipe_id cannot be the same'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            daily_meal = DailyMeal.objects.prefetch_related('recipes').get(
+                weekly_plan__user=request.user,
+                date=date
+            )
+        except DailyMeal.DoesNotExist:
+            return Response(
+                {'detail': 'Daily meal plan not found for this date'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if old recipe exists in the daily meal
+        if not daily_meal.recipes.filter(id=old_recipe_id).exists():
+            return Response(
+                {'detail': f'Recipe with id {old_recipe_id} not found in this daily meal'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if new recipe exists
+        try:
+            new_recipe = Recipe.objects.get(id=new_recipe_id)
+        except Recipe.DoesNotExist:
+            return Response(
+                {'detail': f'Recipe with id {new_recipe_id} does not exist'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Perform the switch
+        with transaction.atomic():
+            daily_meal.recipes.remove(old_recipe_id)
+            daily_meal.recipes.add(new_recipe_id)
+
+        # Refresh and return updated daily meal
+        daily_meal.refresh_from_db()
+        serializer = DailyMealSerializer(daily_meal)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class AutoSwapRecipeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request={
+            'type': 'object',
+            'properties': {
+                'date': {'type': 'string', 'format': 'date', 'description': 'Date of the daily meal (YYYY-MM-DD)'},
+                'old_recipe_id': {'type': 'integer', 'description': 'ID of the recipe to replace'}
+            },
+            'required': ['date', 'old_recipe_id']
+        },
+        responses=DailyMealSerializer
+    )
+    def post(self, request):
+        date_str = request.data.get('date')
+        old_recipe_id = request.data.get('old_recipe_id')
+
+        if not date_str or old_recipe_id is None:
+            return Response(
+                {'detail': 'Missing required fields: date, old_recipe_id'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'detail': 'Invalid date format. Use YYYY-MM-DD'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            old_recipe_id = int(old_recipe_id)
+        except (ValueError, TypeError):
+            return Response(
+                {'detail': 'old_recipe_id must be an integer'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            preferences = UserDietPreferences.objects.get(user=request.user)
+        except UserDietPreferences.DoesNotExist:
+            return Response(
+                {'detail': 'User preferences not found. Please set your preferences first.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            daily_meal = DailyMeal.objects.prefetch_related('recipes').get(
+                weekly_plan__user=request.user,
+                date=date
+            )
+        except DailyMeal.DoesNotExist:
+            return Response(
+                {'detail': 'Daily meal plan not found for this date'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if old recipe exists in the daily meal
+        if not daily_meal.recipes.filter(id=old_recipe_id).exists():
+            return Response(
+                {'detail': f'Recipe with id {old_recipe_id} not found in this daily meal'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        old_recipe = Recipe.objects.get(id=old_recipe_id)
+
+        current_totals = daily_meal.get_totals()
+
+        totals_without_old = {
+            'calories': current_totals['calories'] - old_recipe.calories,
+            'protein': current_totals['protein'] - old_recipe.protein,
+            'carbs': current_totals['carbs'] - old_recipe.carbs,
+            'fat': current_totals['fat'] - old_recipe.fat,
+        }
+
+        meal_type = old_recipe.meal_type
+
+        existing_recipe_ids = list(daily_meal.recipes.values_list('id', flat=True))
+        candidate_recipes = Recipe.objects.exclude(id=old_recipe_id).exclude(id__in=existing_recipe_ids).filter(
+            meal_type=meal_type
+        )
+
+        def recipe_to_dict(recipe):
+            return {
+                'id': recipe.id,
+                'name': recipe.name,
+                'description': recipe.description,
+                'meal_type': recipe.meal_type,
+                'protein': float(recipe.protein),
+                'carbs': float(recipe.carbs),
+                'fat': float(recipe.fat),
+                'calories': float(recipe.calories),
+                'ingredients': list(recipe.ingredients or []),
+                'tags': recipe.tags or '',
+                'is_vegetarian': bool(recipe.is_vegetarian),
+                'is_vegan': bool(recipe.is_vegan),
+                'is_low_carb': bool(recipe.is_low_carb),
+                'is_gluten_free': bool(recipe.is_gluten_free),
+                'is_keto': bool(recipe.is_keto),
+                'is_pescetarian': bool(recipe.is_pescetarian),
+            }
+
+        allowed_recipes = []
+        allergens = list(preferences.allergens or [])
+        excluded = list(preferences.excluded_ingredients or [])
+
+        for recipe in candidate_recipes:
+            recipe_dict = recipe_to_dict(recipe)
+            if recipe_allowed(recipe_dict, preferences.diet_type, allergens, excluded):
+                allowed_recipes.append(recipe)
+
+        if not allowed_recipes:
+            return Response(
+                {'detail': f'No suitable replacement recipes found for {meal_type} that meet your preferences'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        def calculate_score(recipe):
+            new_totals = {
+                'calories': totals_without_old['calories'] + recipe.calories,
+                'protein': totals_without_old['protein'] + recipe.protein,
+                'carbs': totals_without_old['carbs'] + recipe.carbs,
+                'fat': totals_without_old['fat'] + recipe.fat,
+            }
+
+            target_calories = preferences.get_target_calories()
+
+            calories_ok = (
+                        preferences.min_calories_per_day <= new_totals['calories'] <= preferences.max_calories_per_day)
+            protein_ok = (preferences.min_protein_per_day <= new_totals['protein'] <= preferences.max_protein_per_day)
+            carbs_ok = (preferences.min_carbs_per_day <= new_totals['carbs'] <= preferences.max_carbs_per_day)
+            fat_ok = (preferences.min_fat_per_day <= new_totals['fat'] <= preferences.max_fat_per_day)
+
+            score = 0
+            if calories_ok:
+                score += 1000
+                score += 100 - abs(new_totals['calories'] - target_calories) / 10
+            else:
+                if new_totals['calories'] < preferences.min_calories_per_day:
+                    score -= abs(new_totals['calories'] - preferences.min_calories_per_day) * 2
+                else:
+                    score -= abs(new_totals['calories'] - preferences.max_calories_per_day) * 2
+
+            if protein_ok:
+                score += 100
+            else:
+                if new_totals['protein'] < preferences.min_protein_per_day:
+                    score -= abs(new_totals['protein'] - preferences.min_protein_per_day)
+                else:
+                    score -= abs(new_totals['protein'] - preferences.max_protein_per_day)
+
+            if carbs_ok:
+                score += 100
+            else:
+                if new_totals['carbs'] < preferences.min_carbs_per_day:
+                    score -= abs(new_totals['carbs'] - preferences.min_carbs_per_day)
+                else:
+                    score -= abs(new_totals['carbs'] - preferences.max_carbs_per_day)
+
+            if fat_ok:
+                score += 100
+            else:
+                if new_totals['fat'] < preferences.min_fat_per_day:
+                    score -= abs(new_totals['fat'] - preferences.min_fat_per_day)
+                else:
+                    score -= abs(new_totals['fat'] - preferences.max_fat_per_day)
+
+            score += rand.uniform(-5, 5)
+
+            return score, new_totals
+
+        best_score = float('-inf')
+        best_recipes = []
+
+        for recipe in allowed_recipes:
+            score, _ = calculate_score(recipe)
+            if score > best_score:
+                best_score = score
+                best_recipes = [recipe]
+            elif abs(score - best_score) < 10:
+                best_recipes.append(recipe)
+
+        if not best_recipes:
+            return Response(
+                {'detail': 'Could not find a suitable replacement recipe'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        best_recipe = rand.choice(best_recipes)
+
+        with transaction.atomic():
+            daily_meal.recipes.remove(old_recipe_id)
+            daily_meal.recipes.add(best_recipe.id)
+
+        daily_meal.refresh_from_db()
+        serializer = DailyMealSerializer(daily_meal)
+        return Response({
+            'success': True,
+            'message': f'Successfully swapped recipe "{old_recipe.name}" with "{best_recipe.name}"',
+            'old_recipe': RecipeSerializer(old_recipe).data,
+            'new_recipe': RecipeSerializer(best_recipe).data,
+            'daily_meal': serializer.data
+        }, status=status.HTTP_200_OK)

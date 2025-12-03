@@ -25,14 +25,17 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['username', 'email']
 
 
+
 class RecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
         fields = [
             'id', 'name', 'description', 'meal_type', 'protein', 'carbs',
             'fat', 'calories', 'tags', "steps", 'n_steps', 'n_ingredients',
-            'ingredients', 'is_vegetarian', 'is_vegan'
+            'ingredients', 'is_vegetarian', 'is_vegan',
+            'is_low_carb', 'is_gluten_free', 'is_keto', 'is_pescetarian'
         ]
+
 
 
 class UserDietPreferencesSerializer(serializers.ModelSerializer):

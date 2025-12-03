@@ -124,6 +124,55 @@ def is_vegetarian_recipe(row) -> bool:
 
     return False  # Default to False unless explicitly vegetarian
 
+def is_low_carb_recipe(row) -> bool:
+    low_carb_excludes = ['sugar', 'flour', 'rice', 'pasta', 'bread', 'oats', 'potato', 'corn']
+    ingredients_str = ' '.join(row['ingredients_list']).lower()
+    tags_str = str(row['tags']).lower()
+    name_str = str(row['name']).lower()
+    combined_text = f"{ingredients_str} {tags_str} {name_str}"
+    for excl in low_carb_excludes:
+        if excl in combined_text:
+            return False
+    return True
+
+
+def is_gluten_free_recipe(row) -> bool:
+    gluten_excludes = ['flour', 'wheat', 'barley', 'rye', 'bread', 'pasta', 'cereal']
+    ingredients_str = ' '.join(row['ingredients_list']).lower()
+    tags_str = str(row['tags']).lower()
+    name_str = str(row['name']).lower()
+    combined_text = f"{ingredients_str} {tags_str} {name_str}"
+    for excl in gluten_excludes:
+        if excl in combined_text:
+            return False
+    return True
+
+
+def is_keto_recipe(row) -> bool:
+    keto_excludes = ['sugar', 'flour', 'rice', 'pasta', 'bread', 'oats', 'potato',
+                     'banana', 'honey', 'corn', 'fruit']
+    ingredients_str = ' '.join(row['ingredients_list']).lower()
+    tags_str = str(row['tags']).lower()
+    name_str = str(row['name']).lower()
+    combined_text = f"{ingredients_str} {tags_str} {name_str}"
+    for excl in keto_excludes:
+        if excl in combined_text:
+            return False
+    return True
+
+
+def is_pescetarian_recipe(row) -> bool:
+    pescetarian_excludes = ['chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'meat',
+                            'bacon', 'ham', 'sausage', 'steak']
+    ingredients_str = ' '.join(row['ingredients_list']).lower()
+    tags_str = str(row['tags']).lower()
+    name_str = str(row['name']).lower()
+    combined_text = f"{ingredients_str} {tags_str} {name_str}"
+    for excl in pescetarian_excludes:
+        if excl in combined_text:
+            return False
+    return True
+
 
 def classify_meal_type(row) -> str:
     tags_str = str(row['tags']).lower()
@@ -173,6 +222,10 @@ def prepare_recipes(df: pd.DataFrame) -> List[Dict]:
     df['meal_type'] = df.apply(classify_meal_type, axis=1)
     df['is_vegetarian'] = df.apply(is_vegetarian_recipe, axis=1)
     df['is_vegan'] = df.apply(is_vegan_recipe, axis=1)
+    df['is_low_carb'] = df.apply(is_low_carb_recipe, axis=1)
+    df['is_gluten_free'] = df.apply(is_gluten_free_recipe, axis=1)
+    df['is_keto'] = df.apply(is_keto_recipe, axis=1)
+    df['is_pescetarian'] = df.apply(is_pescetarian_recipe, axis=1)
 
     recipes = []
     for _, row in df.iterrows():
@@ -193,7 +246,11 @@ def prepare_recipes(df: pd.DataFrame) -> List[Dict]:
             'n_steps': int(row.get('n_steps', 0)),
             'n_ingredients': int(row.get('n_ingredients', 0)),
             'is_vegetarian': row['is_vegetarian'],
-            'is_vegan': row['is_vegan']
+            'is_vegan': row['is_vegan'],
+            'is_low_carb': row['is_low_carb'],
+            'is_gluten_free': row['is_gluten_free'],
+            'is_keto': row['is_keto'],
+            'is_pescetarian': row['is_pescetarian']
         }
         recipes.append(recipe)
 
