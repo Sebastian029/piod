@@ -333,7 +333,7 @@ export default function Questionnaire() {
               </button>
             ))}
           </div>
-          <div className={styles.vegCard}>
+          {/* <div className={styles.vegCard}>
             <h3 className={styles.vegTitle}>Vegetarian Days</h3>
             <p className={styles.vegDesc}>
               How many days per week would you like vegetarian meals?
@@ -350,7 +350,7 @@ export default function Questionnaire() {
             <div className={styles.vegValue}>
               {vegetarianDays} days per week
             </div>
-          </div>
+          </div> */}
         </div>
       )}
 
