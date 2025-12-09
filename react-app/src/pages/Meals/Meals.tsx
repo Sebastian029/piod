@@ -6,6 +6,7 @@ import { type WeeklyMealPlan, MealPlanApi } from "../../api";
 import { Layout } from "../../components/Layout";
 import styles from './Meals.module.css';
 import axiosInstance from "../../api/axiosInstance";
+import { Rate } from "antd";
 
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -75,7 +76,20 @@ export default function MealPlan() {
     }finally{
       setLoading(false);
     }
+  }
 
+  const handleRatingChange = async (recipeId: number, rating: number) => {
+    try{
+      await axiosInstance.post('/api/ratings/',{
+        recipe_id: recipeId,
+        rating: rating,
+      })
+      const newPlan = await getMealPlan();
+      setMealPlan(newPlan);
+    }
+    catch(err){
+      console.error("Failed to rate recipe:", err);
+    }
   }
 
   const regeneratePlan = () => {
@@ -220,6 +234,16 @@ export default function MealPlan() {
                             <span className={styles.ingredientChip} key={ingredient}>{ingredient}</span>
                           ))}
                         </div>
+                      </div>
+                      <div>
+                        <p className={styles.ingredientsHeader}>Your raring:{meal.user_rating}</p>
+                        <Rate 
+                          count={6}
+                          allowClear={false}
+                          size="large"
+                          value={meal.user_rating}
+                          onChange={(value) => handleRatingChange(meal.id, value)}
+                        />
                       </div>
                     </div>
                   ))}

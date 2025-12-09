@@ -77,6 +77,7 @@ export interface Recipe {
     'ingredients'?: any;
     'is_vegetarian'?: boolean;
     'is_vegan'?: boolean;
+    'user_rating':number;
 }
 export interface Register {
     /**
