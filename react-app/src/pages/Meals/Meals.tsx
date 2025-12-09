@@ -5,7 +5,6 @@ import { Download, Edit2, Shuffle, Plus, Minus } from "lucide-react";
 import { type WeeklyMealPlan, MealPlanApi } from "../../api";
 import { Layout } from "../../components/Layout";
 import styles from './Meals.module.css';
-import axiosInstance from "../../api/axiosInstance";
 
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -63,7 +62,7 @@ export default function MealPlan() {
   const switchRecipe = async (date: string, recipeID: number) => {
     setLoading(true);
     try {
-      const switchResponse = await axiosInstance.post('/api/plans/auto-swap-recipe/',{
+      const switchResponse = await MealPlanApi.plans.plansAutoSwapRecipeCreate({
         date,
         old_recipe_id: recipeID,
       })
