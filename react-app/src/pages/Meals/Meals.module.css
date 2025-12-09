@@ -2,6 +2,7 @@
 .loadingContainer {
   text-align: center;
   padding: 4rem 0;
+  
 }
 .loadingSpinnerWrapper {
   display: inline-flex;
@@ -91,6 +92,10 @@
 .btnPrimary:hover { background: #1d4ed8; }
 
 /* Weekly Stats */
+.planContainer{
+  width: 75%
+}
+
 .weeklyStatsGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -126,15 +131,19 @@
 }
 
 /* Daily Plan */
-.dailyPlanList { display: flex; flex-direction: column; gap: 1rem; }
+.dailyPlanList { 
+  display: flex; 
+  flex-direction: 
+  column; 
+  gap: 1rem; 
+}
+
 .dailyCard {
   background: #fff;
   border-radius: 0.75rem;
   border: 1px solid #e2e8f0;
   overflow: hidden;
-     color: #2d343f;
-
-  
+     color: #2d343f; 
 }
 .dark .dailyCard { background: #0f172a; border-color: #334155; }
 .dailyCardBtn {
