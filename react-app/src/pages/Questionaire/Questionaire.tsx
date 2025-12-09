@@ -1,20 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
-import { type PatchedUserDietPreferences, MealPlanApi, DietTypeEnum } from "../../api";
+import { MealPlanApi, type PatchedUserDietPreferences, type DietTypeEnum, type DietData } from "../../api";
 import { Layout } from "../../components/Layout";
 import styles from "./Questionaire.module.css"; 
-import axiosInstance from "../../api/axiosInstance";
 import { Slider, Cascader} from 'antd';
 
-
-//TODO retrieve ALL this stuff from API
-
-// const DIET_TYPES: string[] = [
-//   DietTypeEnum.Standard,
-//   DietTypeEnum.Vegetarian,
-//   DietTypeEnum.Vegan,
-// ]
 
 const MEAL_OPTIONS = [
   "breakfast", 
@@ -22,30 +13,10 @@ const MEAL_OPTIONS = [
   "dinner"
 ];
 
-// const ALLERGY_OPTIONS = [
-//   "nuts",
-//   "dairy",
-//   "shellfish",
-//   "eggs",
-//   "soy",
-//   "wheat",
-//   "sesame",
-// ];
-
-// const DISLIKED_INGREDIENTS = [
-//   "mushrooms",
-//   "olives",
-//   "cilantro",
-//   "spicy",
-//   "liver",
-//   "seafood",
-//   "beans",
-// ];
-
 
 export default function Questionnaire() {
   const navigate = useNavigate();
-  const [dietTypes, setDietTypes] = useState<{id: string, name: string}[]>([]);
+  const [dietTypes, setDietTypes] = useState<DietData[]>([]);
   const [allergens, setAllergens] = useState([""]);
   const [ingredients, setIngredients] = useState([""]);
   
@@ -64,7 +35,7 @@ export default function Questionnaire() {
     //TODO vegeterian_days
   });
   //TODO remove when preferred_meals is available
-  const [preferredMeals, setPreferredMeals] = useState<string[]>(["breakfast", "lunch", "dinner"]);
+  const [preferredMeals, setPreferredMeals] = useState<string[]>([...MEAL_OPTIONS]);
   //TODO remove when preferred_meals is available
   const [vegetarianDays, setVegetarianDays] = useState<number>(0);
 
@@ -74,11 +45,11 @@ export default function Questionnaire() {
   useEffect(() => {
     const fetchOptions = async () => {
       try{
-        const dietResponse = await axiosInstance.get('api/diets/');
+        const dietResponse = await MealPlanApi.diets.dietsRetrieve();
         setDietTypes(dietResponse.data.diets);
-        const ingredientsResponse = await axiosInstance.get('api/ingredients/?mode=ingredients');
+        const ingredientsResponse = await MealPlanApi.ingredients.ingredientsRetrieve('ingredients');
         setIngredients(ingredientsResponse.data.ingredients);
-        const allergensResponse = await axiosInstance.get('api/ingredients/?mode=allergens');
+        const allergensResponse = await MealPlanApi.ingredients.ingredientsRetrieve('allergens');
         setAllergens(allergensResponse.data.ingredients);
         console.log(dietResponse.data);
         console.log(ingredientsResponse);

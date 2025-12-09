@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "gen-api-client": "openapi-generator-cli generate -i http://localhost:8000/api/schema/ -g typescript-axios -o src/api --global-property 'apis,models'"
+    "gen-api-client": "openapi-generator-cli generate -i http://localhost:8000/api/schema/ -g typescript-axios -o src/api --global-property 'apis,models,modelDocs=false'"
   },
   "dependencies": {
     "@material/web": "^2.4.1",
