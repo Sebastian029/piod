@@ -422,6 +422,17 @@ class GeneratePlanView(APIView):
         # Get user's preferred tags from their recipe ratings
         preferred_tags = get_user_preferred_tags(request.user)
 
+        # Set fitness multipliers based on user's priority
+        fitness_priority = getattr(preferences, 'fitness_priority', 'calories')
+        fitness_multipliers = {
+            'calories': 1.0,
+            'macros': 1.0,
+            'tags': 1.0
+        }
+        # Increase multiplier for the selected priority (2.5x weight)
+        if fitness_priority in fitness_multipliers:
+            fitness_multipliers[fitness_priority] = 2.5
+
         constraints = MealPlanConstraints(
             days=7,
             meals_per_day=preferences.meals_per_day,
@@ -437,6 +448,7 @@ class GeneratePlanView(APIView):
             diet_type=preferences.diet_type,
             diversity_window_days=7,
             preferred_tags=preferred_tags if preferred_tags else None,
+            fitness_multipliers=fitness_multipliers,
         )
 
         ga = GAConfig()

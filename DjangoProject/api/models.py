@@ -40,6 +40,11 @@ class UserDietPreferences(models.Model):
         ('vegan', 'Vegan'),
     ]
 
+    FITNESS_PRIORITY_CHOICES = [
+        ('calories', 'Calories'),
+        ('macros', 'Macros'),
+        ('tags', 'Tags'),
+    ]
 
     user = models.OneToOneField(
         User,
@@ -60,6 +65,7 @@ class UserDietPreferences(models.Model):
     allergens = models.JSONField(default=list, blank=True)
     excluded_ingredients = models.JSONField(default=list, blank=True)
     diet_type = models.CharField(max_length=20, choices=DIET_TYPE_CHOICES, default='standard')
+    fitness_priority = models.CharField(max_length=20, choices=FITNESS_PRIORITY_CHOICES, default='calories')
 
     def __str__(self):
         return f"{self.user.username} preferences"

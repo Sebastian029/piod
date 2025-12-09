@@ -71,6 +71,7 @@ class UserDietPreferencesSerializer(serializers.ModelSerializer):
             'allergens',
             'excluded_ingredients',
             'diet_type',
+            'fitness_priority',
         ]
         read_only_fields = ['user']
 
