@@ -1,20 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
-import { type PatchedUserDietPreferences, MealPlanApi, DietTypeEnum } from "../../api";
+import { MealPlanApi, type PatchedUserDietPreferences, type DietTypeEnum, type DietData } from "../../api";
 import { Layout } from "../../components/Layout";
 import styles from "./Questionaire.module.css"; 
-import axiosInstance from "../../api/axiosInstance";
 import { Slider, Cascader} from 'antd';
 
-
-//TODO retrieve ALL this stuff from API
-
-// const DIET_TYPES: string[] = [
-//   DietTypeEnum.Standard,
-//   DietTypeEnum.Vegetarian,
-//   DietTypeEnum.Vegan,
-// ]
 
 const MEAL_OPTIONS = [
   "breakfast", 
@@ -22,30 +13,16 @@ const MEAL_OPTIONS = [
   "dinner"
 ];
 
-// const ALLERGY_OPTIONS = [
-//   "nuts",
-//   "dairy",
-//   "shellfish",
-//   "eggs",
-//   "soy",
-//   "wheat",
-//   "sesame",
-// ];
-
-// const DISLIKED_INGREDIENTS = [
-//   "mushrooms",
-//   "olives",
-//   "cilantro",
-//   "spicy",
-//   "liver",
-//   "seafood",
-//   "beans",
-// ];
+const FITNESS_OPTIONS = [
+  "calories",
+  "macros",
+  "tags"
+];
 
 
 export default function Questionnaire() {
   const navigate = useNavigate();
-  const [dietTypes, setDietTypes] = useState<{id: string, name: string}[]>([]);
+  const [dietTypes, setDietTypes] = useState<DietData[]>([]);
   const [allergens, setAllergens] = useState([""]);
   const [ingredients, setIngredients] = useState([""]);
   
@@ -61,10 +38,11 @@ export default function Questionnaire() {
     //TODO min/max_fat_per_day
     allergens: [],
     excluded_ingredients: [],
+    fitness_priority: "calories",
     //TODO vegeterian_days
   });
   //TODO remove when preferred_meals is available
-  const [preferredMeals, setPreferredMeals] = useState<string[]>(["breakfast", "lunch", "dinner"]);
+  const [preferredMeals, setPreferredMeals] = useState<string[]>([...MEAL_OPTIONS]);
   //TODO remove when preferred_meals is available
   const [vegetarianDays, setVegetarianDays] = useState<number>(0);
 
@@ -74,11 +52,11 @@ export default function Questionnaire() {
   useEffect(() => {
     const fetchOptions = async () => {
       try{
-        const dietResponse = await axiosInstance.get('api/diets/');
+        const dietResponse = await MealPlanApi.diets.dietsRetrieve();
         setDietTypes(dietResponse.data.diets);
-        const ingredientsResponse = await axiosInstance.get('api/ingredients/?mode=ingredients');
+        const ingredientsResponse = await MealPlanApi.ingredients.ingredientsRetrieve('ingredients');
         setIngredients(ingredientsResponse.data.ingredients);
-        const allergensResponse = await axiosInstance.get('api/ingredients/?mode=allergens');
+        const allergensResponse = await MealPlanApi.ingredients.ingredientsRetrieve('allergens');
         setAllergens(allergensResponse.data.ingredients);
         console.log(dietResponse.data);
         console.log(ingredientsResponse);
@@ -145,7 +123,7 @@ export default function Questionnaire() {
   }
 
   const handleNext = () => {
-    if (step < 4) {
+    if (step < 5) {
       setStep(step + 1);
     }
   };
@@ -172,7 +150,7 @@ export default function Questionnaire() {
   const allergyOptions = allergens.map(item => ({ value: item, label: item.charAt(0).toUpperCase() + item.slice(1) }));
   const ingredientOptions = ingredients.map(item => ({ value: item, label: item.charAt(0).toUpperCase() + item.slice(1) }));
 
-  const progressPercentage = ((step + 1) / 5) * 100;
+  const progressPercentage = ((step + 1) / 6) * 100;
 
   return (
     <Layout>
@@ -180,7 +158,7 @@ export default function Questionnaire() {
       {/* Progress bar */}
       <div className={styles.progressHeader}>
         <h1 className={styles.mainTitle}>Meal Plan Preferences</h1>
-        <span className={styles.progressStep}>Step {step + 1} of 5</span>
+        <span className={styles.progressStep}>Step {step + 1} of 6</span>
       </div>
       <div className={styles.progressBarOuter}>
         <div
@@ -470,6 +448,35 @@ export default function Questionnaire() {
         </div>
       )}
 
+
+      {/* Step 5: Focus areas */}
+      {step === 5 && (
+        <div className={styles.stepSection}>
+          <div>
+            <h2 className={styles.stepTitle}>Focus areas</h2>
+            <p className={styles.stepDesc}>
+              Select what is most important for you.
+            </p>
+          </div>
+          <div className={styles.gridList}>
+            {FITNESS_OPTIONS.map((fit) => (
+              <button
+                key={fit}
+                onClick={() => setPreferences((prev) => ({ ...prev, fitness_priority: fit }))}
+                className={`${styles.buttonOption} ${
+                  preferences.fitness_priority == fit ? styles.buttonActive : ""
+                }`}
+              >
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                  <span style={{'textTransform': "capitalize"}}>{fit}</span>
+                  {preferences.fitness_priority ==fit && <Check className="icon" />}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Navigation Buttons */}
       <div className={styles.navBtnsRow}>
         <button
@@ -479,7 +486,7 @@ export default function Questionnaire() {
         >
           Previous
         </button>
-        {step === 4 ? (
+        {step === 5 ? (
           <button onClick={handleSubmit}
             className={`${styles.btnPrimary} ${styles.shadow}`}>
             Generate My Plan

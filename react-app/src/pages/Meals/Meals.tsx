@@ -64,7 +64,7 @@ export default function MealPlan() {
   const switchRecipe = async (date: string, recipeID: number) => {
     setLoading(true);
     try {
-      const switchResponse = await axiosInstance.post('/api/plans/auto-swap-recipe/',{
+      const switchResponse = await MealPlanApi.plans.plansAutoSwapRecipeCreate({
         date,
         old_recipe_id: recipeID,
       })
