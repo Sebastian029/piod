@@ -9,7 +9,7 @@ All URIs are relative to *http://localhost*
 |[**tokenRefreshCreate**](#tokenrefreshcreate) | **POST** /api/token/refresh/ | |
 
 # **authRegisterCreate**
-> authRegisterCreate(register)
+> SimpleDetailResponse authRegisterCreate(register)
 
 
 ### Example
@@ -40,7 +40,7 @@ const { status, data } = await apiInstance.authRegisterCreate(
 
 ### Return type
 
-void (empty response body)
+**SimpleDetailResponse**
 
 ### Authorization
 
@@ -49,13 +49,13 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: application/json, application/x-www-form-urlencoded, multipart/form-data
- - **Accept**: Not defined
+ - **Accept**: application/json
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-|**200** | No response body |  -  |
+|**201** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

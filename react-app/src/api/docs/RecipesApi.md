@@ -10,7 +10,7 @@ All URIs are relative to *http://localhost*
 |[**recipesRetrieve**](#recipesretrieve) | **GET** /api/recipes/{id}/ | |
 
 # **recipesDeleteAllDestroy**
-> recipesDeleteAllDestroy()
+> DeleteAllRecipesResponse recipesDeleteAllDestroy()
 
 
 ### Example
@@ -33,7 +33,7 @@ This endpoint does not have any parameters.
 
 ### Return type
 
-void (empty response body)
+**DeleteAllRecipesResponse**
 
 ### Authorization
 
@@ -42,13 +42,14 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: application/json
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-|**204** | No response body |  -  |
+|**200** |  |  -  |
+|**400** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
@@ -96,7 +97,7 @@ This endpoint does not have any parameters.
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **recipesLoadCreate**
-> recipesLoadCreate()
+> UploadRecipesResponse recipesLoadCreate()
 
 
 ### Example
@@ -119,7 +120,7 @@ This endpoint does not have any parameters.
 
 ### Return type
 
-void (empty response body)
+**UploadRecipesResponse**
 
 ### Authorization
 
@@ -128,13 +129,14 @@ void (empty response body)
 ### HTTP request headers
 
  - **Content-Type**: Not defined
- - **Accept**: Not defined
+ - **Accept**: application/json
 
 
 ### HTTP response details
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
-|**200** | No response body |  -  |
+|**201** |  |  -  |
+|**400** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

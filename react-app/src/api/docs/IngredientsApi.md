@@ -1,36 +1,43 @@
-# ProtectedApi
+# IngredientsApi
 
 All URIs are relative to *http://localhost*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**protectedRetrieve**](#protectedretrieve) | **GET** /api/protected/ | |
+|[**ingredientsRetrieve**](#ingredientsretrieve) | **GET** /api/ingredients/ | |
 
-# **protectedRetrieve**
-> ProtectedViewGetResponse protectedRetrieve()
+# **ingredientsRetrieve**
+> IngredientsResponse ingredientsRetrieve()
 
 
 ### Example
 
 ```typescript
 import {
-    ProtectedApi,
+    IngredientsApi,
     Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new ProtectedApi(configuration);
+const apiInstance = new IngredientsApi(configuration);
 
-const { status, data } = await apiInstance.protectedRetrieve();
+let mode: string; // (optional) (default to undefined)
+
+const { status, data } = await apiInstance.ingredientsRetrieve(
+    mode
+);
 ```
 
 ### Parameters
-This endpoint does not have any parameters.
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **mode** | [**string**] |  | (optional) defaults to undefined|
 
 
 ### Return type
 
-**ProtectedViewGetResponse**
+**IngredientsResponse**
 
 ### Authorization
 

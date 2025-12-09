@@ -20,6 +20,10 @@ Name | Type | Description | Notes
 **ingredients** | **any** |  | [optional] [default to undefined]
 **is_vegetarian** | **boolean** |  | [optional] [default to undefined]
 **is_vegan** | **boolean** |  | [optional] [default to undefined]
+**is_low_carb** | **boolean** |  | [optional] [default to undefined]
+**is_gluten_free** | **boolean** |  | [optional] [default to undefined]
+**is_keto** | **boolean** |  | [optional] [default to undefined]
+**is_pescetarian** | **boolean** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -42,6 +46,10 @@ const instance: Recipe = {
     ingredients,
     is_vegetarian,
     is_vegan,
+    is_low_carb,
+    is_gluten_free,
+    is_keto,
+    is_pescetarian,
 };
 ```
 

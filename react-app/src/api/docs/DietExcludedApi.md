@@ -1,36 +1,43 @@
-# ProtectedApi
+# DietExcludedApi
 
 All URIs are relative to *http://localhost*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**protectedRetrieve**](#protectedretrieve) | **GET** /api/protected/ | |
+|[**dietExcludedRetrieve**](#dietexcludedretrieve) | **GET** /api/diet-excluded/ | |
 
-# **protectedRetrieve**
-> ProtectedViewGetResponse protectedRetrieve()
+# **dietExcludedRetrieve**
+> DietExcludedIngredientsResponse dietExcludedRetrieve()
 
 
 ### Example
 
 ```typescript
 import {
-    ProtectedApi,
+    DietExcludedApi,
     Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new ProtectedApi(configuration);
+const apiInstance = new DietExcludedApi(configuration);
 
-const { status, data } = await apiInstance.protectedRetrieve();
+let diet: string; // (optional) (default to undefined)
+
+const { status, data } = await apiInstance.dietExcludedRetrieve(
+    diet
+);
 ```
 
 ### Parameters
-This endpoint does not have any parameters.
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **diet** | [**string**] |  | (optional) defaults to undefined|
 
 
 ### Return type
 
-**ProtectedViewGetResponse**
+**DietExcludedIngredientsResponse**
 
 ### Authorization
 
@@ -46,6 +53,7 @@ This endpoint does not have any parameters.
 | Status code | Description | Response headers |
 |-------------|-------------|------------------|
 |**200** |  |  -  |
+|**400** |  |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

@@ -1,27 +1,27 @@
-# ProtectedApi
+# DietsApi
 
 All URIs are relative to *http://localhost*
 
 |Method | HTTP request | Description|
 |------------- | ------------- | -------------|
-|[**protectedRetrieve**](#protectedretrieve) | **GET** /api/protected/ | |
+|[**dietsRetrieve**](#dietsretrieve) | **GET** /api/diets/ | |
 
-# **protectedRetrieve**
-> ProtectedViewGetResponse protectedRetrieve()
+# **dietsRetrieve**
+> DietTypesResponse dietsRetrieve()
 
 
 ### Example
 
 ```typescript
 import {
-    ProtectedApi,
+    DietsApi,
     Configuration
 } from './api';
 
 const configuration = new Configuration();
-const apiInstance = new ProtectedApi(configuration);
+const apiInstance = new DietsApi(configuration);
 
-const { status, data } = await apiInstance.protectedRetrieve();
+const { status, data } = await apiInstance.dietsRetrieve();
 ```
 
 ### Parameters
@@ -30,7 +30,7 @@ This endpoint does not have any parameters.
 
 ### Return type
 
-**ProtectedViewGetResponse**
+**DietTypesResponse**
 
 ### Authorization
 
