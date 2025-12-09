@@ -157,3 +157,74 @@ class WeeklyMealPlanSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = WeeklyMealPlan
         fields = ['start_date', 'end_date', 'score']
+
+
+
+
+
+###### Request & response serializers ######
+
+class SimpleDetailResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+
+class ProtectedViewGetResponseSerializer(serializers.Serializer):
+    message = serializers.CharField()
+    user = serializers.CharField()
+
+class UploadRecipesResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    count = serializers.IntegerField(required=False)
+
+class DeleteAllRecipesResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    deleted_recipes = serializers.IntegerField(required=False)
+
+class DietTypesResponseSerializer(serializers.Serializer):
+    class DietDataSerializer(serializers.Serializer):
+        id = serializers.CharField()
+        name = serializers.CharField()
+
+    success = serializers.BooleanField()
+    diets = serializers.ListField(child=DietDataSerializer())
+    total_count = serializers.IntegerField()
+
+class DietExcludedIngredientsErrorResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    error = serializers.CharField()
+    available_diets = serializers.ListField(child=serializers.CharField())
+
+class DietExcludedIngredientsResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    diet = serializers.CharField()
+    exclude_keywords = serializers.ListField(child=serializers.CharField())
+    excluded_recipes_count = serializers.IntegerField()
+
+class IngredientsResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    ingredients = serializers.ListField(child=serializers.CharField())
+    total_count = serializers.IntegerField()
+    mode = serializers.CharField()
+
+class GeneratePlanResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    weeks = serializers.ListField(
+        child=WeeklyMealPlanSerializer()
+    )
+
+class SwitchRecipeRequestSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    old_recipe_id = serializers.IntegerField()
+    new_recipe_id = serializers.IntegerField()
+
+class AutoSwapRecipeRequestSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    old_recipe_id = serializers.IntegerField()
+
+class AutoSwapRecipeResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    old_recipe = RecipeSerializer()
+    new_recipe = RecipeSerializer()
+    daily_meal = DailyMealSerializer()

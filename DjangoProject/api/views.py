@@ -19,6 +19,17 @@ from .serializers import (
     RegisterSerializer,
     UserDietPreferencesSerializer,
     WeeklyMealPlanSerializer,
+    SimpleDetailResponseSerializer,
+    ProtectedViewGetResponseSerializer,
+    UploadRecipesResponseSerializer,
+    DeleteAllRecipesResponseSerializer,
+    DietTypesResponseSerializer,
+    DietExcludedIngredientsResponseSerializer,
+    DietExcludedIngredientsErrorResponseSerializer,
+    IngredientsResponseSerializer,
+    SwitchRecipeRequestSerializer,
+    AutoSwapRecipeRequestSerializer,
+    AutoSwapRecipeResponseSerializer,
 )
 from core.ga_engine import evolve
 from core.ga_types import GAConfig, MacroRange, MealPlanConstraints
@@ -29,7 +40,12 @@ from core.ga_constraints import recipe_allowed, recipe_matches_diet, recipe_cont
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
-    @extend_schema(request=RegisterSerializer)
+    @extend_schema(
+        request=RegisterSerializer,
+        responses={
+            201: SimpleDetailResponseSerializer
+        }
+    )
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -43,7 +59,11 @@ class RegisterView(APIView):
 class CurrentUserView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(responses=UserSerializer)
+    @extend_schema(
+        responses={
+            200: UserSerializer
+        }
+    )
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
@@ -52,6 +72,11 @@ class CurrentUserView(APIView):
 class ProtectedView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        responses={
+            200: ProtectedViewGetResponseSerializer
+        }
+    )
     def get(self, request):
         return Response({
             "message": "This is a protected resource",
@@ -62,6 +87,12 @@ class ProtectedView(APIView):
 class UploadRecipesView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        responses={
+            201: UploadRecipesResponseSerializer,
+            400: UploadRecipesResponseSerializer,
+        }
+    )
     def post(self, request):
         try:
             df = load_data()
@@ -127,6 +158,12 @@ class RecipeViewSet(viewsets.ReadOnlyModelViewSet):
 class DeleteAllRecipesView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        responses={
+            200: DeleteAllRecipesResponseSerializer,
+            400: DeleteAllRecipesResponseSerializer,
+        }
+    )
     def delete(self, request):
         try:
             with transaction.atomic():
@@ -150,7 +187,11 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = UserDietPreferencesSerializer
 
-    @extend_schema(responses=UserDietPreferencesSerializer)
+    @extend_schema(
+        responses={
+            200: UserDietPreferencesSerializer,
+        }
+    )
     def list(self, request):
         preferences, created = UserDietPreferences.objects.get_or_create(
             user=request.user
@@ -158,6 +199,12 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
         serializer = UserDietPreferencesSerializer(preferences)
         return Response(serializer.data)
 
+    @extend_schema(
+        responses={
+            201: UserDietPreferencesSerializer,
+            400: SimpleDetailResponseSerializer,
+        }
+    )
     def create(self, request):
         if UserDietPreferences.objects.filter(user=request.user).exists():
             return Response(
@@ -171,6 +218,12 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        responses={
+            200: UserDietPreferencesSerializer,
+            404: SimpleDetailResponseSerializer,
+        }
+    )
     def update(self, request):
         try:
             preferences = UserDietPreferences.objects.get(user=request.user)
@@ -190,6 +243,12 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        responses={
+            200: UserDietPreferencesSerializer,
+            404: SimpleDetailResponseSerializer,
+        }
+    )
     def partial_update(self, request):
         try:
             preferences = UserDietPreferences.objects.get(user=request.user)
@@ -209,6 +268,12 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        responses={
+            204: SimpleDetailResponseSerializer,
+            404: SimpleDetailResponseSerializer,
+        }
+    )
     def destroy(self, request):
         try:
             preferences = UserDietPreferences.objects.get(user=request.user)
@@ -227,6 +292,11 @@ class UserDietPreferencesViewSet(viewsets.ViewSet):
 class DietTypesView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        responses={
+            200: DietTypesResponseSerializer,
+        }
+    )
     def get(self, request):
         diet_data = [
             {'id': 'vegan', 'name': 'Vegan'},
@@ -282,6 +352,15 @@ class DietExcludedIngredientsView(APIView):
         ]
     }
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name='diet', type=str, required=False, location=OpenApiParameter.QUERY)
+        ],
+        responses={
+            200: DietExcludedIngredientsResponseSerializer,
+            400: DietExcludedIngredientsErrorResponseSerializer
+        }
+    )
     def get(self, request):
         diet_name = request.query_params.get('diet', '').lower().strip()
 
@@ -337,6 +416,14 @@ class IngredientView(APIView):
         "mustard", "sesame", "sesame seeds", "celery"
     ]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name='mode', type=str, required=False, location=OpenApiParameter.QUERY)
+        ],
+        responses={
+            200: IngredientsResponseSerializer,
+        }
+    )
     def get(self, request):
         mode = request.query_params.get('mode', 'ingredients')
 
@@ -380,6 +467,12 @@ class IngredientView(APIView):
 class GeneratePlanView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        responses={
+            200: IngredientsResponseSerializer,
+            400: SimpleDetailResponseSerializer,
+        }
+    )
     def post(self, request):
         preferences, _ = UserDietPreferences.objects.get_or_create(user=request.user)
 
@@ -479,7 +572,7 @@ class GeneratePlanView(APIView):
 
                     created_plans.append(weekly_plan)
 
-            serializer = WeeklyMealPlanSerializer(created_plans, many=True)
+            serializer = WeeklyMealPlanSerializer(created_plans, many=True, )
 
             return Response({
                 'success': True,
@@ -488,8 +581,7 @@ class GeneratePlanView(APIView):
 
         except Exception as e:
             return Response({
-                'success': False,
-                'message': f'Error: {str(e)}'
+                'detail': f'Error: {str(e)}'
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -503,7 +595,12 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
         ).prefetch_related('days__recipes')
 
     @action(detail=False, methods=['get'])
-    @extend_schema(responses=WeeklyMealPlanSerializer)
+    @extend_schema(
+        responses={
+            200: WeeklyMealPlanSerializer,
+            404: SimpleDetailResponseSerializer,
+        }
+    )
     def current(self, request):
         today = datetime.now().date()
         week_start = WeeklyMealPlan.get_week_start(today)
@@ -520,7 +617,11 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
         parameters=[
             OpenApiParameter(name='date', type=str, required=True, location=OpenApiParameter.QUERY)
         ],
-        responses=WeeklyMealPlanSerializer
+        responses={
+            200: WeeklyMealPlanSerializer,
+            400: SimpleDetailResponseSerializer,
+            404: SimpleDetailResponseSerializer
+        }
     )
     def by_date(self, request):
         date_str = request.query_params.get('date')
@@ -668,6 +769,11 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
     @action(detail=False, methods=['delete'])
+    @extend_schema(
+        responses={
+            200: SimpleDetailResponseSerializer,
+        }
+    )
     def delete_all(self, request):
         count = self.get_queryset().count()
         self.get_queryset().delete()
@@ -678,6 +784,13 @@ class DailyMealView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(responses=DailyMealSerializer)
+    @extend_schema(
+        responses={
+            200: DailyMealSerializer,
+            400: SimpleDetailResponseSerializer,
+            404: SimpleDetailResponseSerializer,
+        }
+    )
     def get(self, request, date_str):
         try:
             date = datetime.strptime(date_str, '%Y-%m-%d').date()
@@ -699,16 +812,12 @@ class SwitchRecipeView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        request={
-            'type': 'object',
-            'properties': {
-                'date': {'type': 'string', 'format': 'date', 'description': 'Date of the daily meal (YYYY-MM-DD)'},
-                'old_recipe_id': {'type': 'integer', 'description': 'ID of the recipe to replace'},
-                'new_recipe_id': {'type': 'integer', 'description': 'ID of the new recipe'}
-            },
-            'required': ['date', 'old_recipe_id', 'new_recipe_id']
-        },
-        responses=DailyMealSerializer
+        request=SwitchRecipeRequestSerializer,
+        responses={
+            200: DailyMealSerializer,
+            400: SimpleDetailResponseSerializer,
+            404: SimpleDetailResponseSerializer,
+        }
     )
     def post(self, request):
         date_str = request.data.get('date')
@@ -786,15 +895,12 @@ class AutoSwapRecipeView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        request={
-            'type': 'object',
-            'properties': {
-                'date': {'type': 'string', 'format': 'date', 'description': 'Date of the daily meal (YYYY-MM-DD)'},
-                'old_recipe_id': {'type': 'integer', 'description': 'ID of the recipe to replace'}
-            },
-            'required': ['date', 'old_recipe_id']
-        },
-        responses=DailyMealSerializer
+        request=AutoSwapRecipeRequestSerializer,
+        responses={
+            200: AutoSwapRecipeResponseSerializer,
+            400: SimpleDetailResponseSerializer,
+            404: SimpleDetailResponseSerializer,
+        }
     )
     def post(self, request):
         date_str = request.data.get('date')
