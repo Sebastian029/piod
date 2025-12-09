@@ -115,7 +115,7 @@ def compute_fitness(
     score += diet_bonus
     breakdown['diet_bonus'] = diet_bonus
 
-    # Tag similarity bonus based on user's rated recipes
+
     tag_bonus = 0.0
     if constraints.preferred_tags:
         for d in range(constraints.days):
@@ -123,9 +123,8 @@ def compute_fitness(
                 r = recipes[idx]
                 recipe_tags = str(r.get('tags', '') or '')
                 similarity = calculate_tag_similarity(recipe_tags, constraints.preferred_tags)
-                # Scale the similarity score to appropriate bonus points
-                # Similarity can be quite high, so we'll scale it down
-                tag_bonus += similarity * 5.0  # Adjust multiplier as needed
+
+                tag_bonus += similarity * 2.0
     score += tag_bonus
     breakdown['tag_similarity'] = tag_bonus
 

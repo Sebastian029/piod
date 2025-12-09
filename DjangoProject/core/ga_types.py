@@ -24,7 +24,7 @@ class MealPlanConstraints:
     allergens: List[str]
     diet_type: DietType
     diversity_window_days: int = 3
-    preferred_tags: Optional[Dict[str, float]] = None  # Tag preferences from user ratings
+    preferred_tags: Optional[Dict[str, float]] = None
 
 
 @dataclass
