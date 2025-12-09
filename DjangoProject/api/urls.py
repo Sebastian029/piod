@@ -1,11 +1,23 @@
 from django.urls import path
 from .views import RegisterView, ProtectedView, UserDietPreferencesViewSet, IngredientView, DietExcludedIngredientsView, \
-    DietTypesView
+    DietTypesView, RecipeRatingViewSet
 from . import views
 
 preferences_list = UserDietPreferencesViewSet.as_view({
     'get': 'list',
     'post': 'create',
+    'put': 'update',
+    'patch': 'partial_update',
+    'delete': 'destroy',
+})
+
+ratings_list = RecipeRatingViewSet.as_view({
+    'get': 'list',
+    'post': 'create',
+})
+
+ratings_detail = RecipeRatingViewSet.as_view({
+    'get': 'retrieve',
     'put': 'update',
     'patch': 'partial_update',
     'delete': 'destroy',
@@ -39,4 +51,9 @@ urlpatterns = [
     path('plans/switch-recipe/', views.SwitchRecipeView.as_view(), name='switch-recipe'),
     path('plans/auto-swap-recipe/', views.AutoSwapRecipeView.as_view(), name='auto-swap-recipe'),
     path('plans/delete-all/', views.WeeklyMealPlanViewSet.as_view({'delete': 'delete_all'}), name='delete-all-plans'),
+
+    path('ratings/', ratings_list, name='recipe-ratings-list'),
+    path('ratings/my/', RecipeRatingViewSet.as_view({'get': 'my_ratings'}), name='my-ratings'),
+    path('ratings/by-recipe/', RecipeRatingViewSet.as_view({'get': 'by_recipe'}), name='rating-by-recipe'),
+    path('ratings/<int:pk>/', ratings_detail, name='recipe-rating-detail'),
 ]

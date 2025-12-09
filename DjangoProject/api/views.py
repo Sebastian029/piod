@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
-from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal
+from .models import Recipe, UserDietPreferences, WeeklyMealPlan, DailyMeal, UserRecipeRating
 from .serializers import (
     UserSerializer,
     DailyMealSerializer,
@@ -19,11 +19,13 @@ from .serializers import (
     RegisterSerializer,
     UserDietPreferencesSerializer,
     WeeklyMealPlanSerializer,
+    UserRecipeRatingSerializer,
 )
 from core.ga_engine import evolve
 from core.ga_types import GAConfig, MacroRange, MealPlanConstraints
 from core.get_data import load_data, prepare_recipes
 from core.ga_constraints import recipe_allowed, recipe_matches_diet, recipe_contains_any
+from core.tag_analysis import get_user_preferred_tags
 
 
 class RegisterView(APIView):
@@ -417,6 +419,20 @@ class GeneratePlanView(APIView):
         else:
             required_types = ['breakfast', 'lunch', 'dinner']
 
+        # Get user's preferred tags from their recipe ratings
+        preferred_tags = get_user_preferred_tags(request.user)
+
+        # Set fitness multipliers based on user's priority
+        fitness_priority = getattr(preferences, 'fitness_priority', 'calories')
+        fitness_multipliers = {
+            'calories': 1.0,
+            'macros': 1.0,
+            'tags': 1.0
+        }
+        # Increase multiplier for the selected priority (2.5x weight)
+        if fitness_priority in fitness_multipliers:
+            fitness_multipliers[fitness_priority] = 2.5
+
         constraints = MealPlanConstraints(
             days=7,
             meals_per_day=preferences.meals_per_day,
@@ -431,6 +447,8 @@ class GeneratePlanView(APIView):
             allergens=list(preferences.allergens or []),
             diet_type=preferences.diet_type,
             diversity_window_days=7,
+            preferred_tags=preferred_tags if preferred_tags else None,
+            fitness_multipliers=fitness_multipliers,
         )
 
         ga = GAConfig()
@@ -983,7 +1001,90 @@ class AutoSwapRecipeView(APIView):
         return Response({
             'success': True,
             'message': f'Successfully swapped recipe "{old_recipe.name}" with "{best_recipe.name}"',
-            'old_recipe': RecipeSerializer(old_recipe).data,
-            'new_recipe': RecipeSerializer(best_recipe).data,
+            'old_recipe': RecipeSerializer(old_recipe, context={'request': request}).data,
+            'new_recipe': RecipeSerializer(best_recipe, context={'request': request}).data,
             'daily_meal': serializer.data
         }, status=status.HTTP_200_OK)
+
+
+class RecipeRatingViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserRecipeRatingSerializer
+
+    def get_queryset(self):
+        return UserRecipeRating.objects.filter(user=self.request.user)
+
+    @extend_schema(
+        request={
+            'type': 'object',
+            'properties': {
+                'recipe_id': {'type': 'integer', 'description': 'ID of the recipe to rate'},
+                'rating': {'type': 'integer', 'description': 'Rating from 1 to 6', 'minimum': 1, 'maximum': 6}
+            },
+            'required': ['recipe_id', 'rating']
+        },
+        responses=UserRecipeRatingSerializer
+    )
+    def create(self, request):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        rating = serializer.save()  # ✅ Teraz działa - user dodawany w serializer.create()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        request={
+            'type': 'object',
+            'properties': {
+                'rating': {'type': 'integer', 'description': 'Rating from 1 to 6', 'minimum': 1, 'maximum': 6}
+            },
+            'required': ['rating']
+        },
+        responses=UserRecipeRatingSerializer
+    )
+    def update(self, request, pk=None):
+        try:
+            rating = UserRecipeRating.objects.get(pk=pk, user=request.user)
+        except UserRecipeRating.DoesNotExist:
+            return Response(
+                {'detail': 'Rating not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = self.get_serializer(rating, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name='recipe_id', type=int, required=True, location=OpenApiParameter.QUERY)
+        ],
+        responses=UserRecipeRatingSerializer
+    )
+    def by_recipe(self, request):
+        recipe_id = request.query_params.get('recipe_id')
+        if not recipe_id:
+            return Response(
+                {'detail': 'recipe_id parameter is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            rating = UserRecipeRating.objects.get(user=request.user, recipe_id=recipe_id)
+            serializer = self.get_serializer(rating)
+            return Response(serializer.data)
+        except UserRecipeRating.DoesNotExist:
+            # Return default rating of 3 if not rated yet
+            return Response({
+                'rating': 3,
+                'recipe_id': int(recipe_id),
+                'message': 'Recipe not rated yet, default rating is 3'
+            })
+
+    @action(detail=False, methods=['get'])
+    @extend_schema(responses=UserRecipeRatingSerializer(many=True))
+    def my_ratings(self, request):
+        ratings = self.get_queryset()
+        serializer = self.get_serializer(ratings, many=True)
+        return Response(serializer.data)
