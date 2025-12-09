@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Dict, List, Tuple
 from .ga_types import MealPlan, MealPlanConstraints, Recipe
+from .tag_analysis import calculate_tag_similarity
 
 
 def _day_totals(day_recipes: List[Recipe]) -> Dict[str, float]:
@@ -28,12 +29,13 @@ def compute_fitness(
     score = 1000.0
     breakdown: Dict[str, float] = {}
 
+    calories_multiplier = constraints.fitness_multipliers.get('calories', 1.0)
     kcal_penalty = 0.0
     for d in range(constraints.days):
         day_rcps = [recipes[idx] for idx in plan.plan[d]]
         totals = _day_totals(day_rcps)
         diff = totals['calories'] - constraints.calories_target_per_day
-        kcal_penalty += (diff / max(constraints.calories_target_per_day, 1.0)) ** 2 * 200.0
+        kcal_penalty += (diff / max(constraints.calories_target_per_day, 1.0)) ** 2 * 200.0 * calories_multiplier
     score -= kcal_penalty
     breakdown['calories'] = -kcal_penalty
 
@@ -53,6 +55,7 @@ def compute_fitness(
     score -= type_penalty
     breakdown['required_types'] = -type_penalty
 
+    macros_multiplier = constraints.fitness_multipliers.get('macros', 1.0)
     macros_penalty = 0.0
     for d in range(constraints.days):
         totals = _day_totals([recipes[idx] for idx in plan.plan[d]])
@@ -62,9 +65,9 @@ def compute_fitness(
             low, high = rng
             val = totals[key]
             if val < low:
-                macros_penalty += (low - val) * 0.5
+                macros_penalty += (low - val) * 0.5 * macros_multiplier
             elif val > high:
-                macros_penalty += (val - high) * 0.5
+                macros_penalty += (val - high) * 0.5 * macros_multiplier
     score -= macros_penalty
     breakdown['macros'] = -macros_penalty
 
@@ -113,6 +116,20 @@ def compute_fitness(
                 diet_bonus += 0.5
     score += diet_bonus
     breakdown['diet_bonus'] = diet_bonus
+
+
+    tags_multiplier = constraints.fitness_multipliers.get('tags', 1.0)
+    tag_bonus = 0.0
+    if constraints.preferred_tags:
+        for d in range(constraints.days):
+            for idx in plan.plan[d]:
+                r = recipes[idx]
+                recipe_tags = str(r.get('tags', '') or '')
+                similarity = calculate_tag_similarity(recipe_tags, constraints.preferred_tags)
+
+                tag_bonus += similarity * 2.0 * tags_multiplier
+    score += tag_bonus
+    breakdown['tag_similarity'] = tag_bonus
 
     return score, breakdown
 

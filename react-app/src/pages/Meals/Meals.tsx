@@ -4,7 +4,8 @@ import { Download, Edit2, Shuffle, Plus, Minus } from "lucide-react";
 
 import { type WeeklyMealPlan, MealPlanApi } from "../../api";
 import { Layout } from "../../components/Layout";
-import styles from './Meals.module.css'; // Import stylów!
+import styles from './Meals.module.css';
+import axiosInstance from "../../api/axiosInstance";
 
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -59,6 +60,24 @@ export default function MealPlan() {
     );
   };
 
+  const switchRecipe = async (date: string, recipeID: number) => {
+    setLoading(true);
+    try {
+      const switchResponse = await axiosInstance.post('/api/plans/auto-swap-recipe/',{
+        date,
+        old_recipe_id: recipeID,
+      })
+      const newPlan = await getMealPlan();
+      setMealPlan(newPlan);
+    }
+    catch(err){
+      console.error("Failed to swap recipe: ", err)
+    }finally{
+      setLoading(false);
+    }
+
+  }
+
   const regeneratePlan = () => {
     setLoading(true);
     setExpandedDaysNums([]);
@@ -91,7 +110,7 @@ export default function MealPlan() {
 
   return (
     <Layout>
-      <div>
+      <div className={styles.planContainer}>
         {/* Header */}
         <div className={styles.headerRow}>
           <div>
@@ -186,7 +205,12 @@ export default function MealPlan() {
                           <p className={styles.mealStatValue}>{meal.fat}g</p>
                         </div>
                         <div>
-                          <button className={styles.mealSwapBtn}>Swap</button>
+                          <button 
+                            className={styles.mealSwapBtn} 
+                            onClick={() => switchRecipe(dayPlan.date, meal.id)}
+                            >
+                              Swap
+                            </button>
                         </div>
                       </div>
                       <div>
@@ -226,12 +250,12 @@ export default function MealPlan() {
 
         {/* Action Buttons */}
         <div className={styles.actionRow}>
-          <Link to="/shopping-list" className={styles.actionBtn}>
+          {/* <Link to="/shopping-list" className={styles.actionBtn}>
             View Shopping List
-          </Link>
-          <button className={styles.actionBtnSecondary}>
+          </Link> */}
+          {/* <button className={styles.actionBtnSecondary}>
             Edit Plan
-          </button>
+          </button> */}
         </div>
       </div>
     </Layout>

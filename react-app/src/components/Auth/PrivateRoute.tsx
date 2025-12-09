@@ -1,6 +1,7 @@
 import { useAuth } from "./AuthContext";
 import { useState } from "react";
 import { AuthModal } from "../Modal/AuthModal";
+import { Navigate } from "react-router-dom";
 
 export function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -9,9 +10,10 @@ export function PrivateRoute({ children }: { children: React.ReactNode }) {
   if (!user) {
     return (
         <>
-            {children}
+            {/* {children} */}
             
-            <AuthModal open={showLogin} onClose={() => setShowLogin(false)}/>
+            {/* <AuthModal open={showLogin} onClose={() => setShowLogin(false)}/> */}
+            <Navigate to="/" replace/>
         </>
 
 

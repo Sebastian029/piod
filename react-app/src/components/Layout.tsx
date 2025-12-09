@@ -17,6 +17,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
   const openLogin = () => setShowLoginModal(true);
 
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  }
+
   const goToQuestionnaire = () => {
     if (!user) {
       openLogin();
@@ -87,7 +92,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             ) : (
               <button
                 className="nav-link"
-                onClick={logout}
+                onClick={handleLogout}
               >
                 Logout
               </button>
