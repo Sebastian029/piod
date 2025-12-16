@@ -38,6 +38,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     navigate("/mealplan", { state: { shouldRegenerate: false } });
   };
 
+  const goToMealHistory = () => {
+    if (!user) {
+      openLogin();
+      return;
+    }
+    navigate("/history", { state: { shouldRegenerate: false } });
+  };
+
 
   return (
     <div className="layout-root">
@@ -74,6 +82,16 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             >
               <span className="hidden-sm">Meal Plan</span>
               <span className="visible-sm">Plan</span>
+            </button>
+            <button
+              type="button"
+              onClick={goToMealHistory}
+              className={`nav-link ${
+                isActive("/history") ? "active" : ""
+              }`}
+            >
+              <span className="hidden-sm">History</span>
+              <span className="visible-sm">History</span>
             </button>
             {/* <Link
               to="/shopping-list"

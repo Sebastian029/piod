@@ -5,6 +5,7 @@ import Index from "./pages/Index/Index";
 import './App.css'
 import MealPlan from "./pages/Meals/Meals";
 import Qiestionaire from "./pages/Questionaire/Questionaire";
+import MealPlanHistory from "./pages/History/History";
 
 function App() {
   return(
@@ -19,6 +20,10 @@ function App() {
           <Route path="/mealplan" element={
             <PrivateRoute>
               <MealPlan />
+            </PrivateRoute>} />
+          <Route path="/history" element={
+            <PrivateRoute>
+              <MealPlanHistory />
             </PrivateRoute>} />
         </Routes>
       </BrowserRouter>
