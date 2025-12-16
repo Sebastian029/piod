@@ -7,6 +7,7 @@ from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiParameter
@@ -548,8 +549,6 @@ class GeneratePlanView(APIView):
         )
 
         ga = GAConfig()
-
-        WeeklyMealPlan.objects.filter(user=request.user).delete()
         created_plans = []
 
         today = datetime.now().date()
@@ -576,6 +575,10 @@ class GeneratePlanView(APIView):
                             'score': best_score
                         }
                     )
+
+                    # Wyczyść poprzednie dni dla tego tygodnia (jeśli istnieją),
+                    # aby uniknąć duplikatów i konfliktów unikalności.
+                    weekly_plan.days.all().delete()
 
                     for day_idx in range(7):
                         day_date = week_start + timedelta(days=day_idx)
@@ -611,9 +614,16 @@ class GeneratePlanView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
+class WeeklyPlansPagination(PageNumberPagination):
+    page_size = 5
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+
 class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = WeeklyMealPlanSerializer
+    pagination_class = WeeklyPlansPagination
 
     def get_queryset(self):
         return WeeklyMealPlan.objects.filter(
@@ -635,6 +645,33 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
         ).values('recipe_id', 'rating')
 
         return {item['recipe_id']: item['rating'] for item in user_ratings_qs}
+
+    @action(detail=False, methods=['get'])
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name='page', type=int, required=False, location=OpenApiParameter.QUERY),
+            OpenApiParameter(name='page_size', type=int, required=False, location=OpenApiParameter.QUERY),
+        ],
+        responses=WeeklyMealPlanSerializer(many=True),
+    )
+    def history(self, request):
+        queryset = self.get_queryset().order_by('-start_date')
+        page = self.paginate_queryset(queryset)
+
+        if page is not None:
+            serializer = WeeklyMealPlanSerializer(
+                page,
+                many=True,
+                context={'request': request}
+            )
+            return self.get_paginated_response(serializer.data)
+
+        serializer = WeeklyMealPlanSerializer(
+            queryset,
+            many=True,
+            context={'request': request}
+        )
+        return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
     @extend_schema(
