@@ -471,15 +471,19 @@ class GeneratePlanView(APIView):
 
     @extend_schema(
         responses={
-            200: IngredientsResponseSerializer,
+            200: WeeklyMealPlanSerializer,
             400: SimpleDetailResponseSerializer,
         }
     )
     def post(self, request):
         preferences, _ = UserDietPreferences.objects.get_or_create(user=request.user)
+        user_ratings_qs = UserRecipeRating.objects.filter(user=request.user).values('recipe_id', 'rating')
+        ratings_map = {item['recipe_id']: item['rating'] for item in user_ratings_qs}
 
         recipes = []
         for r in Recipe.objects.all():
+            user_rating = ratings_map.get(r.id, None)
+
             recipes.append({
                 'id': r.id,
                 'name': r.name,
@@ -500,10 +504,11 @@ class GeneratePlanView(APIView):
                 'is_gluten_free': bool(r.is_gluten_free),
                 'is_keto': bool(r.is_keto),
                 'is_pescetarian': bool(r.is_pescetarian),
+                'user_rating': user_rating
             })
 
         if not recipes:
-            return Response({'detail': 'No recipes'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'No recipes found in database.'}, status=status.HTTP_400_BAD_REQUEST)
 
         if preferences.meals_per_day <= 1:
             required_types = ['lunch']
@@ -512,17 +517,15 @@ class GeneratePlanView(APIView):
         else:
             required_types = ['breakfast', 'lunch', 'dinner']
 
-        # Get user's preferred tags from their recipe ratings
         preferred_tags = get_user_preferred_tags(request.user)
 
-        # Set fitness multipliers based on user's priority
         fitness_priority = getattr(preferences, 'fitness_priority', 'calories')
         fitness_multipliers = {
             'calories': 1.0,
             'macros': 1.0,
             'tags': 1.0
         }
-        # Increase multiplier for the selected priority (2.5x weight)
+
         if fitness_priority in fitness_multipliers:
             fitness_multipliers[fitness_priority] = 2.5
 
@@ -547,7 +550,6 @@ class GeneratePlanView(APIView):
         ga = GAConfig()
 
         WeeklyMealPlan.objects.filter(user=request.user).delete()
-
         created_plans = []
 
         today = datetime.now().date()
@@ -563,7 +565,7 @@ class GeneratePlanView(APIView):
                         recipes,
                         constraints,
                         ga,
-                        rng_seed= week_offset
+                        rng_seed=week_offset
                     )
 
                     weekly_plan, created = WeeklyMealPlan.objects.update_or_create(
@@ -584,13 +586,18 @@ class GeneratePlanView(APIView):
                             day_number=day_idx + 1
                         )
 
-                        recipe_ids = [recipes[idx]['id'] for idx in best_plan.plan[day_idx]]
-                        recipe_objects = Recipe.objects.filter(id__in=recipe_ids)
+                        recipe_ids_in_day = [recipes[idx]['id'] for idx in best_plan.plan[day_idx]]
+
+                        recipe_objects = Recipe.objects.filter(id__in=recipe_ids_in_day)
                         daily_meal.recipes.set(recipe_objects)
 
                     created_plans.append(weekly_plan)
 
-            serializer = WeeklyMealPlanSerializer(created_plans, many=True, )
+            serializer = WeeklyMealPlanSerializer(
+                created_plans,
+                many=True,
+                context={'request': request, 'ratings_map': ratings_map}
+            )
 
             return Response({
                 'success': True,
@@ -598,8 +605,9 @@ class GeneratePlanView(APIView):
             }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
+            print(f"Error generating plan: {e}")
             return Response({
-                'detail': f'Error: {str(e)}'
+                'detail': f'Error generating plan: {str(e)}'
             }, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -611,6 +619,22 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
         return WeeklyMealPlan.objects.filter(
             user=self.request.user
         ).prefetch_related('days__recipes')
+
+    def _get_ratings_map(self, plan):
+        if not plan:
+            return {}
+
+        recipe_ids = set()
+        for day in plan.days.all():
+            for recipe in day.recipes.all():
+                recipe_ids.add(recipe.id)
+
+        user_ratings_qs = UserRecipeRating.objects.filter(
+            user=self.request.user,
+            recipe_id__in=recipe_ids
+        ).values('recipe_id', 'rating')
+
+        return {item['recipe_id']: item['rating'] for item in user_ratings_qs}
 
     @action(detail=False, methods=['get'])
     @extend_schema(
@@ -625,7 +649,12 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
 
         try:
             plan = self.get_queryset().get(start_date=week_start)
-            serializer = WeeklyMealPlanSerializer(plan)
+            ratings_map = self._get_ratings_map(plan)
+
+            serializer = WeeklyMealPlanSerializer(
+                plan,
+                context={'request': request, 'ratings_map': ratings_map}
+            )
             return Response(serializer.data)
         except WeeklyMealPlan.DoesNotExist:
             return Response({'detail': 'Brak planu'}, status=status.HTTP_404_NOT_FOUND)
@@ -650,7 +679,12 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
             date = datetime.strptime(date_str, '%Y-%m-%d').date()
             week_start = WeeklyMealPlan.get_week_start(date)
             plan = self.get_queryset().get(start_date=week_start)
-            serializer = WeeklyMealPlanSerializer(plan)
+            ratings_map = self._get_ratings_map(plan)
+
+            serializer = WeeklyMealPlanSerializer(
+                plan,
+                context={'request': request, 'ratings_map': ratings_map}
+            )
             return Response(serializer.data)
         except ValueError:
             return Response({'detail': 'YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
@@ -737,7 +771,11 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
                 },
             }
 
-            plan_serializer = WeeklyMealPlanSerializer(plan)
+            ratings_map = self._get_ratings_map(plan)
+            plan_serializer = WeeklyMealPlanSerializer(
+                plan,
+                context={'request': request, 'ratings_map': ratings_map}
+            )
 
             user_preferences = {
                 'meals_per_day': preferences.meals_per_day,
@@ -795,7 +833,7 @@ class WeeklyMealPlanViewSet(viewsets.ReadOnlyModelViewSet):
     def delete_all(self, request):
         count = self.get_queryset().count()
         self.get_queryset().delete()
-        return Response({'detail': f'Succes'}, status=status.HTTP_200_OK)
+        return Response({'detail': f'Success'}, status=status.HTTP_200_OK)
 
 
 class DailyMealView(APIView):

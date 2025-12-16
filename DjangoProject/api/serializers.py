@@ -25,7 +25,6 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['username', 'email']
 
 
-
 class RecipeSerializer(serializers.ModelSerializer):
     user_rating = serializers.SerializerMethodField()
 
@@ -40,15 +39,16 @@ class RecipeSerializer(serializers.ModelSerializer):
         ]
 
     def get_user_rating(self, obj):
+        ratings_map = self.context.get('ratings_map')
+        if ratings_map is not None:
+            return ratings_map.get(obj.id)
+
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            try:
-                rating = UserRecipeRating.objects.get(user=request.user, recipe=obj)
-                return rating.rating
-            except UserRecipeRating.DoesNotExist:
-                return 3  # Default rating
-        return None
+            rating_obj = UserRecipeRating.objects.filter(user=request.user, recipe=obj).first()
+            return rating_obj.rating if rating_obj else None
 
+        return None
 
 
 class UserDietPreferencesSerializer(serializers.ModelSerializer):
@@ -120,9 +120,6 @@ class UserDietPreferencesSerializer(serializers.ModelSerializer):
 
         return data
 
-
-# POPRAWIONE SERIALIZERY Z DATAMI
-
 class DailyMealSerializer(serializers.ModelSerializer):
     recipes = RecipeSerializer(many=True, read_only=True)
     daily_totals = serializers.SerializerMethodField()
@@ -133,9 +130,6 @@ class DailyMealSerializer(serializers.ModelSerializer):
 
     def get_daily_totals(self, obj) -> dict[str, float]:
         return obj.get_totals()
-
-
-
 
 class WeeklyMealPlanSerializer(serializers.ModelSerializer):
     days = DailyMealSerializer(many=True, read_only=True)
