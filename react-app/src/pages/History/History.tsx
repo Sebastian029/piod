@@ -4,7 +4,7 @@ import { Layout } from "../../components/Layout";
 import styles from "./History.module.css";
 import axiosInstance from "../../api/axiosInstance";
 import { Rate } from "antd";
-import type { WeeklyMealPlan } from "../../api"; // Twój istniejący typ
+import type { WeeklyMealPlan } from "../../api";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 function dayNameByNumber(num: number): string {

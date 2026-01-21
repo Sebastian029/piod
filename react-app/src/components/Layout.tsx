@@ -93,13 +93,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               <span className="hidden-sm">History</span>
               <span className="visible-sm">History</span>
             </button>
-            {/* <Link
-              to="/shopping-list"
-              className={`nav-link${isActive("/shopping-list") ? " active" : ""}`}
-            >
-              <span className="hidden-sm">Shopping List</span>
-              <span className="visible-sm">Shop</span>
-            </Link> */}
+
             {!user ? (
               <button
                 className="nav-link"

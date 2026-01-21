@@ -147,10 +147,7 @@ export default function MealPlan() {
               <Shuffle className="icon" />
               <span>Regenerate</span>
             </button>
-            <button className={styles.btnPrimary}>
-              <Download className="icon" />
-              <span>Export</span>
-            </button>
+
           </div>
         </div>
         
@@ -207,7 +204,13 @@ export default function MealPlan() {
                           <h4 className={styles.mealName}>{meal.name}</h4>
                           <p className={styles.mealType}>{meal.meal_type}</p>
                         </div>
-                        <button className={styles.mealEditBtn}><Edit2 className="icon" /></button>
+                        <button 
+                          className={styles.mealSwapBtn} 
+                          onClick={() => switchRecipe(dayPlan.date, meal.id)}
+                          >
+                            Swap
+                        </button>
+
                       </div>
 
                       <div className={styles.mealStatsGrid}>
@@ -227,14 +230,7 @@ export default function MealPlan() {
                           <p className={styles.mealStatLabel}>Fat</p>
                           <p className={styles.mealStatValue}>{meal.fat}g</p>
                         </div>
-                        <div>
-                          <button 
-                            className={styles.mealSwapBtn} 
-                            onClick={() => switchRecipe(dayPlan.date, meal.id)}
-                            >
-                              Swap
-                            </button>
-                        </div>
+                        
                       </div>
                       <div>
                         <p className={styles.ingredientsHeader}>Ingredients:</p>
@@ -307,15 +303,6 @@ export default function MealPlan() {
           ))}
         </div>
 
-        {/* Action Buttons */}
-        <div className={styles.actionRow}>
-          {/* <Link to="/shopping-list" className={styles.actionBtn}>
-            View Shopping List
-          </Link> */}
-          {/* <button className={styles.actionBtnSecondary}>
-            Edit Plan
-          </button> */}
-        </div>
       </div>
     </Layout>
   );
