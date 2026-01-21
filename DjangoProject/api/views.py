@@ -560,12 +560,7 @@ class GeneratePlanView(APIView):
                     week_start = current_week_start + timedelta(weeks=week_offset)
                     week_end = WeeklyMealPlan.get_week_end(week_start)
 
-                    best_plan, best_score, result = evolve(
-                        recipes,
-                        constraints,
-                        ga,
-                        rng_seed=week_offset
-                    )
+                    best_plan, best_score, result, used_recipes = evolve(recipes, constraints, ga, rng_seed=week_offset)
 
                     weekly_plan, created = WeeklyMealPlan.objects.update_or_create(
                         user=request.user,
@@ -589,7 +584,7 @@ class GeneratePlanView(APIView):
                             day_number=day_idx + 1
                         )
 
-                        recipe_ids_in_day = [recipes[idx]['id'] for idx in best_plan.plan[day_idx]]
+                        recipe_ids_in_day = [used_recipes[idx]['id'] for idx in best_plan.plan[day_idx]]
 
                         recipe_objects = Recipe.objects.filter(id__in=recipe_ids_in_day)
                         daily_meal.recipes.set(recipe_objects)
