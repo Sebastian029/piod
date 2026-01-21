@@ -96,20 +96,17 @@ def mutate_meal_plan(meal_plan: MealPlan, recipes: List[Recipe], constraints: Me
     return meal_plan
 
 
-def evolve(recipes: List[Recipe], constraints: MealPlanConstraints, ga: GAConfig, rng_seed: int | None = None) -> Tuple[
-    MealPlan, float, dict]:
-
+def evolve(recipes: List[Recipe], constraints: MealPlanConstraints, ga: GAConfig, rng_seed: int | None = None) -> (
+    Tuple)[MealPlan, float, dict, List[Recipe]]:
     if rng_seed is not None:
         random.seed(rng_seed)
 
-    filtered_recipes = []
-    for recipe in recipes:
-        if recipe_allowed(recipe, constraints.diet_type, constraints.allergens, constraints.excluded_ingredients):
-            filtered_recipes.append(recipe)
-        else:
-            recipe_copy = dict(recipe)
-            recipe_copy['__banned__'] = True
-            filtered_recipes.append(recipe_copy)
+    filtered_recipes = [
+        r for r in recipes
+        if recipe_allowed(r, constraints.diet_type, constraints.allergens, constraints.excluded_ingredients)
+    ]
+    if not filtered_recipes:
+        raise ValueError("No recipes match constraints (diet/allergens/excluded).")
 
     population = []
     for i in range(ga.population_size):
@@ -162,4 +159,4 @@ def evolve(recipes: List[Recipe], constraints: MealPlanConstraints, ga: GAConfig
 
         population = next_generation[:ga.population_size]
 
-    return best_plan, best_fitness, best_details
+    return best_plan, best_fitness, best_details, filtered_recipes

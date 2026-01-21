@@ -80,17 +80,12 @@ def is_vegan_recipe(row) -> bool:
     tags_str = str(row['tags']).lower()
     name_str = str(row['name']).lower()
 
-    # Check for explicit vegan tag
-    if 'vegan' in tags_str:
-        return True
-
-    # Check for non-vegan ingredients
     combined_text = f"{ingredients_str} {tags_str} {name_str}"
     for keyword in non_vegan_keywords:
         if keyword in combined_text:
             return False
 
-    return False  # Default to False unless explicitly vegan
+    return True
 
 
 def is_vegetarian_recipe(row) -> bool:
@@ -112,17 +107,12 @@ def is_vegetarian_recipe(row) -> bool:
     tags_str = str(row['tags']).lower()
     name_str = str(row['name']).lower()
 
-    # Check for explicit vegetarian or vegan tag
-    if 'vegetarian' in tags_str or 'vegan' in tags_str:
-        return True
-
-    # Check for non-vegetarian ingredients
     combined_text = f"{ingredients_str} {tags_str} {name_str}"
     for keyword in non_vegetarian_keywords:
         if keyword in combined_text:
             return False
 
-    return False  # Default to False unless explicitly vegetarian
+    return True
 
 def is_low_carb_recipe(row) -> bool:
     low_carb_excludes = ['sugar', 'flour', 'rice', 'pasta', 'bread', 'oats', 'potato', 'corn']
