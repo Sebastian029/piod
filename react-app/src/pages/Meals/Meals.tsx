@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Download, Edit2, Shuffle, Plus, Minus } from "lucide-react";
+import { Download, Edit2, Shuffle, Plus, Minus, ChevronUp, ChevronDown } from "lucide-react";
 
 import { type WeeklyMealPlan, MealPlanApi } from "../../api";
 import { Layout } from "../../components/Layout";
@@ -37,6 +37,8 @@ export default function MealPlan() {
   const [mealPlan, setMealPlan] = useState<WeeklyMealPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedDaysNums, setExpandedDaysNums] = useState<number[]>([]);
+  const [expandedDescription, setExpandedDescription] = useState<Record<number,boolean>>({});
+  
   useEffect(() => {
     const fetchData = async () => {
       if (shouldRegenerate) {
@@ -59,6 +61,13 @@ export default function MealPlan() {
     setExpandedDaysNums((prev) =>
       prev.includes(dayNum) ? prev.filter((d) => d !== dayNum) : [...prev, dayNum]
     );
+  };
+
+  const toggleDescriptionExpand = (recipeId: number) => {
+    setExpandedDescription(prev => ({
+      ...prev,
+      [recipeId]: !prev[recipeId],
+    }));
   };
 
   const switchRecipe = async (date: string, recipeID: number) => {
@@ -150,22 +159,22 @@ export default function MealPlan() {
           <div className={styles.weeklyStatCard}>
             <p className={styles.weeklyStatLabel}>Total Calories</p>
             <p className={styles.weeklyStatValue}>{mealPlan.weekly_totals.calories.toLocaleString()}</p>
-            <p className={styles.weeklyStatDesc}>{Math.round(mealPlan.weekly_totals.calories / 7)}/day</p>
+            <p className={styles.weeklyStatDesc}>{Math.round(mealPlan.weekly_totals.calories / 7)}kcal per day</p>
           </div>
           <div className={styles.weeklyStatCard}>
             <p className={styles.weeklyStatLabel}>Protein</p>
             <p className={styles.weeklyStatValue}>{Math.round(mealPlan.weekly_totals.protein)}g</p>
-            <p className={styles.weeklyStatDesc}>{Math.round(mealPlan.weekly_totals.protein / 7)}/day</p>
+            <p className={styles.weeklyStatDesc}>{Math.round(mealPlan.weekly_totals.protein / 7)}g per day</p>
           </div>
           <div className={styles.weeklyStatCard}>
             <p className={styles.weeklyStatLabel}>Carbs</p>
             <p className={styles.weeklyStatValue}>{Math.round(mealPlan.weekly_totals.carbs)}g</p>
-            <p className={styles.weeklyStatDesc}>{Math.round(mealPlan.weekly_totals.carbs / 7)}/day</p>
+            <p className={styles.weeklyStatDesc}>{Math.round(mealPlan.weekly_totals.carbs / 7)}g per day</p>
           </div>
           <div className={styles.weeklyStatCard}>
             <p className={styles.weeklyStatLabel}>Fat</p>
             <p className={styles.weeklyStatValue}>{Math.round(mealPlan.weekly_totals.fat)}g</p>
-            <p className={styles.weeklyStatDesc}>{Math.round(mealPlan.weekly_totals.fat / 7)}/day</p>
+            <p className={styles.weeklyStatDesc}>{Math.round(mealPlan.weekly_totals.fat / 7)}g per day</p>
           </div>
         </div>
 
@@ -236,7 +245,7 @@ export default function MealPlan() {
                         </div>
                       </div>
                       <div>
-                        <p className={styles.ingredientsHeader}>Your raring:{meal.user_rating}</p>
+                        <p className={styles.ingredientsHeader}>Your rating:{meal.user_rating}</p>
                         <Rate 
                           count={6}
                           allowClear={false}
@@ -245,6 +254,32 @@ export default function MealPlan() {
                           onChange={(value) => handleRatingChange(meal.id, value)}
                         />
                       </div>
+                      <button
+                        className={styles.expandDescriptionButton}
+                        onClick={() => toggleDescriptionExpand(meal.id)}
+                      >
+                        <div>{expandedDescription[meal.id] ? "Hide description" : "Show description"}</div>
+                        <div>{expandedDescription[meal.id] ? <ChevronUp/> : <ChevronDown/>}</div>
+                      </button>
+
+                      {expandedDescription[meal.id] && (
+                        <div className={styles.mealDetails}>
+                          {meal.description && (
+                            <p className={styles.mealDescription}>{meal.description}</p>
+                          )}
+
+                          {meal.steps && meal.steps.length > 0 && (
+                            <div className={styles.mealSteps}>
+                              <p className={styles.ingredientsHeader}>Steps:</p>
+                              <ol className={styles.mealStep}>
+                                {meal.steps.map((step: string, index: number) => (
+                                  <li key={index}>{step}</li>
+                                ))}
+                              </ol>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
 
