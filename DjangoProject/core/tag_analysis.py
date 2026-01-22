@@ -1,7 +1,7 @@
 from typing import Dict, List
 from collections import Counter
 import re
-
+from api.models import UserRecipeRating
 
 def parse_tags(tags_string: str) -> List[str]:
 
@@ -24,8 +24,6 @@ def parse_tags(tags_string: str) -> List[str]:
 
 def get_user_preferred_tags(user) -> Dict[str, float]:
 
-    from api.models import UserRecipeRating
-    
     ratings = UserRecipeRating.objects.filter(user=user).select_related('recipe')
     
     if not ratings.exists():

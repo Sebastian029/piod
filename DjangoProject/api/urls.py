@@ -41,8 +41,6 @@ urlpatterns = [
 
     path('diet-excluded/', DietExcludedIngredientsView.as_view(), name='diet-excluded-ingredients'),
 
-
-
     path('plans/generate/', views.GeneratePlanView.as_view(), name='generate-3-weeks'),
     path('plans/current/', views.WeeklyMealPlanViewSet.as_view({'get': 'current'}), name='current-week-plan'),
     path('plans/current-test/', views.WeeklyMealPlanViewSet.as_view({'get': 'current_test'}), name='current-week-plan-test'),

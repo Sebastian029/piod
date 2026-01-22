@@ -175,18 +175,14 @@ class UserRecipeRatingSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def create(self, validated_data):
-        # Pobierz użytkownika z kontekstu
         user = self.context['request'].user
 
-        # Zaktualizuj lub utwórz ocenę (zapobiega duplikatom)
         rating, created = UserRecipeRating.objects.update_or_create(
             user=user,
             recipe_id=validated_data['recipe_id'],
             defaults={'rating': validated_data['rating']}
         )
         return rating
-
-
 
 
 ###### Request & response serializers ######

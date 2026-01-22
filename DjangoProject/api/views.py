@@ -571,8 +571,6 @@ class GeneratePlanView(APIView):
                         }
                     )
 
-                    # Wyczyść poprzednie dni dla tego tygodnia (jeśli istnieją),
-                    # aby uniknąć duplikatów i konfliktów unikalności.
                     weekly_plan.days.all().delete()
 
                     for day_idx in range(7):
@@ -952,14 +950,12 @@ class SwitchRecipeView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Check if old recipe exists in the daily meal
         if not daily_meal.recipes.filter(id=old_recipe_id).exists():
             return Response(
                 {'detail': f'Recipe with id {old_recipe_id} not found in this daily meal'},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Check if new recipe exists
         try:
             new_recipe = Recipe.objects.get(id=new_recipe_id)
         except Recipe.DoesNotExist:
@@ -968,12 +964,10 @@ class SwitchRecipeView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Perform the switch
         with transaction.atomic():
             daily_meal.recipes.remove(old_recipe_id)
             daily_meal.recipes.add(new_recipe_id)
 
-        # Refresh and return updated daily meal
         daily_meal.refresh_from_db()
         serializer = DailyMealSerializer(daily_meal)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -1035,7 +1029,6 @@ class AutoSwapRecipeView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Check if old recipe exists in the daily meal
         if not daily_meal.recipes.filter(id=old_recipe_id).exists():
             return Response(
                 {'detail': f'Recipe with id {old_recipe_id} not found in this daily meal'},
@@ -1204,7 +1197,7 @@ class RecipeRatingViewSet(viewsets.ModelViewSet):
     def create(self, request):
         serializer = self.get_serializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        rating = serializer.save()  # ✅ Teraz działa - user dodawany w serializer.create()
+        rating = serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @extend_schema(
@@ -1251,7 +1244,6 @@ class RecipeRatingViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(rating)
             return Response(serializer.data)
         except UserRecipeRating.DoesNotExist:
-            # Return default rating of 3 if not rated yet
             return Response({
                 'rating': 3,
                 'recipe_id': int(recipe_id),
