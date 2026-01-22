@@ -32,22 +32,20 @@ export default function Questionnaire() {
     meals_per_day: 3,
     min_calories_per_day: 1500,
     max_calories_per_day: 3000,
-    // preferred_meals: [], //TODO preferred meals
-    //TODO min/max_protein_per_day
-    //TODO min/max_carbs_per_day
-    //TODO min/max_fat_per_day
+
     allergens: [],
     excluded_ingredients: [],
     fitness_priority: "calories",
-    //TODO vegeterian_days
   });
-  //TODO remove when preferred_meals is available
   const [preferredMeals, setPreferredMeals] = useState<string[]>([...MEAL_OPTIONS]);
-  //TODO remove when preferred_meals is available
-  const [vegetarianDays, setVegetarianDays] = useState<number>(0);
 
   const [allergyCascaderValue, setAllergyCascaderValue] = useState<string[][]>([]);
   const [ingredientCascaderValue, setIngredientCascaderValue] = useState<string[][]>([]);
+
+
+  const flattenCascaderValue = (cascaderValue: string[][]): string[] => {
+    return cascaderValue.flat(); 
+  };
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -81,15 +79,14 @@ export default function Questionnaire() {
   useEffect(() => {
     setPreferences(prev => ({
       ...prev,
-      allergens: allergyCascaderValue,
-      excluded_ingredients: ingredientCascaderValue
+      allergens: flattenCascaderValue(allergyCascaderValue),
+      excluded_ingredients: flattenCascaderValue(ingredientCascaderValue)
     }));
   }, [allergyCascaderValue, ingredientCascaderValue]);
 
   const toggleMultiSelect = (
     field: keyof Pick<
       PatchedUserDietPreferences,
-      //TODO add back preferred_meals when available
       "allergens" | "excluded_ingredients" 
     >,
     value: string
@@ -136,7 +133,7 @@ export default function Questionnaire() {
 
   const handleSubmit = async () => {
     try {
-      //TODO add create_or_update in API, there is no way currently to only check if preferences exist
+      console.log(preferences)
       await MealPlanApi.preferences.preferencesList()
       await MealPlanApi.preferences.preferencesPartialUpdate(preferences)
       navigate("/mealplan", { state: { 
@@ -237,34 +234,7 @@ export default function Questionnaire() {
                   from {preferences.min_calories_per_day} to {preferences.max_calories_per_day}
                 </span>
               </div>
-              {/* <input
-                type="range"
-                min="1200"
-                max="10000"
-                step="100"
-                value={preferences.min_calories_per_day}
-                onChange={(e) =>
-                  setPreferences((prev) => ({
-                    ...prev,
-                    min_calories_per_day: parseInt(e.target.value),
-                  }))
-                }
-                className={styles.sliderRange}
-              />
-              <input
-                type="range"
-                min="1200"
-                max="4000"
-                step="100"
-                value={preferences.max_calories_per_day}
-                onChange={(e) =>
-                  setPreferences((prev) => ({
-                    ...prev,
-                    max_calories_per_day: parseInt(e.target.value),
-                  }))
-                }
-                className={styles.sliderRange}
-              /> */}
+              
               <Slider 
                 className={styles.slider}
                 range={{ draggableTrack: true }} 
@@ -286,24 +256,7 @@ export default function Questionnaire() {
                 <span>4000</span>
               </div>
             </div>
-            {/* <div className={styles.gridButtons}>
-              {[1500, 1800, 2000, 2500, 3000].map((cal) => (
-                <button
-                  key={cal}
-                  onClick={() =>
-                    setPreferences((prev) => ({
-                      ...prev,
-                      dailyCalories: cal,
-                    }))
-                  }
-                  className={`${styles.buttonOption} ${
-                    preferences.dailyCalories === cal ? styles.buttonActive : ""
-                  }`}
-                >
-                  {cal}
-                </button>
-              ))}
-            </div> */}
+            
           </div>
         </div>
       )}
@@ -333,24 +286,7 @@ export default function Questionnaire() {
               </button>
             ))}
           </div>
-          {/* <div className={styles.vegCard}>
-            <h3 className={styles.vegTitle}>Vegetarian Days</h3>
-            <p className={styles.vegDesc}>
-              How many days per week would you like vegetarian meals?
-            </p>
-            <input
-              type="range"
-              min="0"
-              max="7"
-              step="1"
-              value={vegetarianDays}
-              onChange={(e) => setVegetarianDays(parseInt(e.target.value))}
-              className={styles.vegSlider}
-            />
-            <div className={styles.vegValue}>
-              {vegetarianDays} days per week
-            </div>
-          </div> */}
+          
         </div>
       )}
 
@@ -366,22 +302,7 @@ export default function Questionnaire() {
           <div className={styles.spaceVertical}>
             <div>
               <h3 className={styles.subTitle}>Allergies</h3>
-              {/* <div className={styles.gridAllergies}>
-                {allergens.map((allergy) => (
-                  <button
-                    key={allergy}
-                    onClick={() => toggleMultiSelect("allergens", allergy)}
-                    className={`${styles.buttonOption} ${
-                      preferences.allergens.includes(allergy) ? styles.buttonRed : ""
-                    }`}
-                  >
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <span style={{'textTransform': "capitalize"}}>{allergy}</span>
-                      {preferences.allergens.includes(allergy) && <Check className="icon" />}
-                    </div>
-                  </button>
-                ))}
-              </div> */}
+              
               <Cascader
                 style={{ width: '100%', maxWidth: '400px' }}
                 options={allergyOptions}
@@ -396,24 +317,7 @@ export default function Questionnaire() {
             </div>
             <div>
               <h3 className={styles.subTitle}>Disliked Ingredients</h3>
-              {/* <div className={styles.gridDisliked}>
-                {ingredients.map((ingredient) => (
-                  <button
-                    key={ingredient}
-                    onClick={() =>
-                      toggleMultiSelect("excluded_ingredients", ingredient)
-                    }
-                    className={`${styles.buttonOption} ${
-                      preferences.excluded_ingredients.includes(ingredient) ? styles.buttonAmber : ""
-                    }`}
-                  >
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <span style={{'textTransform': "capitalize"}}>{ingredient}</span>
-                      {preferences.excluded_ingredients.includes(ingredient) && <Check className="icon" />}
-                    </div>
-                  </button>
-                ))}
-              </div> */} 
+              
               <Cascader
                 style={{ width: '100%', maxWidth: '400px' }}
                 options={ingredientOptions}
@@ -428,23 +332,7 @@ export default function Questionnaire() {
                
             </div>
           </div>
-          {/* {(allergyCascaderValue.length > 0 || ingredientCascaderValue.length > 0) && (
-              <div style={{ marginTop: 24 }}>
-                <h4 style={{ marginBottom: 12, color: '#666' }}>Wybrane:</h4>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {allergyCascaderValue.map(item => (
-                    <Tag key={`allergy-${item}`} color="red" size="small">
-                      {item}
-                    </Tag>
-                  ))}
-                  {ingredientCascaderValue.map(item => (
-                    <Tag key={`ing-${item}`} color="orange" size="small">
-                      {item}
-                    </Tag>
-                  ))}
-                </div>
-              </div>
-            )} */}
+          
         </div>
       )}
 

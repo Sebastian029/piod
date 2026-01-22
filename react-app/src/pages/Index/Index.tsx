@@ -156,11 +156,11 @@ export default function Index() {
               <div className="stat-label">Macro Accuracy</div>
             </div>
             <div className="stat-block">
-              <div className="stat-num">50+</div>
+              <div className="stat-num">7</div>
               <div className="stat-label">Diet Types</div>
             </div>
             <div className="stat-block">
-              <div className="stat-num">&lt;1s</div>
+              <div className="stat-num">&lt;1m</div>
               <div className="stat-label">Plan Generation</div>
             </div>
           </div>
